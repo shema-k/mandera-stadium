@@ -14,6 +14,10 @@ import java.awt.GridBagLayout;
 import java.awt.GridLayout;
 import java.awt.Insets;
 import java.awt.RenderingHints;
+import java.awt.event.FocusAdapter;
+import java.awt.event.FocusEvent;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.text.NumberFormat;
@@ -25,10 +29,13 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.function.Function;
 import javax.swing.AbstractButton;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
+import javax.swing.DefaultListCellRenderer;
+import javax.swing.DefaultListModel;
 import javax.swing.JButton;
 import javax.swing.border.Border;
 import javax.swing.border.CompoundBorder;
@@ -37,8 +44,10 @@ import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
+import javax.swing.JList;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.JPopupMenu;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.JTextArea;
@@ -118,18 +127,27 @@ public final class StadiumBookingApp extends JFrame {
     private final JButton backNavButton = new FeedbackButton("← Back");
     private final JButton stadiumNavButton = new FeedbackButton("Stadiums");
     private final JButton bookingsNavButton = new FeedbackButton("My bookings");
+    private final JButton seatLedgerNavButton = new FeedbackButton("Booked seats");
 
     private Stadium selectedStadium;
     private StadiumEvent selectedEvent;
     private LocalDate selectedScheduleDate;
     private List<LocalDate> scheduleDates = new ArrayList<>();
+    private List<StadiumEvent> ledgerEventOptions = new ArrayList<>();
     private JPanel scheduleListHost;
     private JLabel scheduleResultLabel;
     private JComboBox<String> dateCombo;
     private JButton clearSelectionButton;
     private JButton confirmBookingButton;
     private JButton cancelBookingButton;
+    private JComboBox<String> ledgerStadiumCombo;
+    private JComboBox<String> ledgerEventCombo;
+    private DefaultTableModel ledgerTableModel;
+    private JTable ledgerTable;
+    private JLabel ledgerSummaryLabel;
+    private JLabel ledgerSectionLabel;
     private String currentScreen = "directory";
+    private String ledgerReturnScreen = "directory";
     private final Timer directorySearchTimer = new Timer(140, event -> {
         if ("directory".equals(currentScreen)) {
             refreshDirectoryContent();
@@ -186,6 +204,10 @@ public final class StadiumBookingApp extends JFrame {
         addDocumentListener(stadiumSearchField, this::refreshDirectoryIfVisible);
         addDocumentListener(eventSearchField, this::refreshScheduleIfVisible);
         addDocumentListener(bookingSearchField, this::refreshBookingsIfVisible);
+        // Live suggestion lists that refresh as each field is typed into.
+        new SearchSuggestions(stadiumSearchField, this::stadiumSuggestions);
+        new SearchSuggestions(eventSearchField, this::eventSuggestions);
+        new SearchSuggestions(bookingSearchField, this::bookingSuggestions);
     }
 
     private void addDocumentListener(JTextField field, Runnable action) {
@@ -254,12 +276,15 @@ public final class StadiumBookingApp extends JFrame {
         styleHeaderButton(backNavButton);
         styleHeaderButton(stadiumNavButton);
         styleHeaderButton(bookingsNavButton);
+        styleHeaderButton(seatLedgerNavButton);
         backNavButton.addActionListener(event -> goBack());
         stadiumNavButton.addActionListener(event -> showStadiumDirectory());
         bookingsNavButton.addActionListener(event -> showBookings());
+        seatLedgerNavButton.addActionListener(event -> showSeatLedger());
         navigation.add(backNavButton);
         navigation.add(stadiumNavButton);
         navigation.add(bookingsNavButton);
+        navigation.add(seatLedgerNavButton);
 
         header.add(titleBlock, BorderLayout.WEST);
         header.add(navigation, BorderLayout.EAST);
@@ -329,6 +354,12 @@ public final class StadiumBookingApp extends JFrame {
     private void goBack() {
         if ("booking".equals(currentScreen) && selectedStadium != null) {
             openStadium(selectedStadium);
+        } else if ("seats".equals(currentScreen)) {
+            if ("booking".equals(ledgerReturnScreen) && selectedEvent != null) {
+                openEvent(selectedEvent);
+            } else {
+                showStadiumDirectory();
+            }
         } else if ("stadium".equals(currentScreen) || "bookings".equals(currentScreen)) {
             showStadiumDirectory();
         }
@@ -1423,7 +1454,11 @@ public final class StadiumBookingApp extends JFrame {
         actions.setOpaque(false);
         clearSelectionButton = createSecondaryButton("Clear seats");
         clearSelectionButton.addActionListener(event -> clearSelection());
+        JButton viewBooked = createSecondaryButton("View booked seats");
+        viewBooked.setToolTipText("See every seat already taken for this event");
+        viewBooked.addActionListener(event -> showSeatLedger());
         actions.add(clearSelectionButton);
+        actions.add(viewBooked);
         summary.add(middle, BorderLayout.CENTER);
         summary.add(actions, BorderLayout.EAST);
         return summary;
@@ -1521,10 +1556,17 @@ public final class StadiumBookingApp extends JFrame {
             showWarning("Select at least one seat before confirming.");
             return;
         }
+        // A reservation is spread across the four sections so one booking never
+        // takes every seat from a single stand. The dialog shows the final seats.
+        List<Seat> spreadSeats = bookingService.allocateSpreadSeats(selectedSeats);
+        boolean spread = !sameSeats(spreadSeats, selectedSeats);
         String choice = showDialogChoice(this,
-                "Confirm " + selectedSeats.size() + " seat" + (selectedSeats.size() == 1 ? "" : "s")
-                        + " for " + currency(bookingService.getTotalCharge(selectedSeats)) + "?\n\n"
-                        + "Seat subtotal: " + currency(bookingService.totalFor(selectedSeats))
+                "Confirm " + spreadSeats.size() + " seat" + (spreadSeats.size() == 1 ? "" : "s")
+                        + " for " + currency(bookingService.getTotalCharge(spreadSeats)) + "?\n\n"
+                        + "Seats: " + joinSeatNames(spreadSeats) + "\n"
+                        + sectionBreakdown(spreadSeats) + "\n"
+                        + (spread ? "Your seats are spread across the sections.\n\n" : "")
+                        + "Seat subtotal: " + currency(bookingService.totalFor(spreadSeats))
                         + "  •  Booking fee: " + currency(bookingService.getBookingFee()) + "\n"
                         + selectedEvent.getHeadline() + "  •  " + selectedEvent.getWhenLabel(),
                 "Confirm booked seats", JOptionPane.QUESTION_MESSAGE,
@@ -1534,7 +1576,7 @@ public final class StadiumBookingApp extends JFrame {
         }
         try {
             Booking booking = bookingService.book(nameField.getText(), emailField.getText(),
-                    phoneField.getText(), selectedSeats);
+                    phoneField.getText(), spreadSeats);
             seatMapPanel.clearSelection();
             seatMapPanel.refreshStatuses();
             clearContactFields();
@@ -1554,6 +1596,39 @@ public final class StadiumBookingApp extends JFrame {
         } catch (IllegalArgumentException exception) {
             showWarning(exception.getMessage());
         }
+    }
+
+    private boolean sameSeats(List<Seat> first, List<Seat> second) {
+        if (first.size() != second.size()) {
+            return false;
+        }
+        for (int index = 0; index < first.size(); index++) {
+            if (!first.get(index).getKey().equals(second.get(index).getKey())) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /** Lists how the chosen seats divide up between sections A to D. */
+    private String sectionBreakdown(List<Seat> seats) {
+        Map<String, Integer> perSection = new LinkedHashMap<>();
+        for (Seat seat : seats) {
+            perSection.merge(seat.getKey().getSection(), 1, Integer::sum);
+        }
+        if (perSection.size() <= 1) {
+            return "";
+        }
+        StringBuilder text = new StringBuilder("By section:  ");
+        boolean first = true;
+        for (Map.Entry<String, Integer> entry : perSection.entrySet()) {
+            if (!first) {
+                text.append("   ");
+            }
+            text.append(entry.getKey()).append(' ').append(entry.getValue());
+            first = false;
+        }
+        return text.toString();
     }
 
     private void clearContactFields() {
@@ -1878,6 +1953,328 @@ public final class StadiumBookingApp extends JFrame {
         } else {
             showWarning("The booking could not be cancelled.");
         }
+    }
+
+    // ---------------------------------------------------------------------
+    // Booked seats ledger
+    // ---------------------------------------------------------------------
+
+    /**
+     * Shows every seat already taken, per stadium and per event, so a customer
+     * can see the occupancy of the venue they are booking on.
+     */
+    private void showSeatLedger() {
+        Stadium target = selectedStadium != null ? selectedStadium : StadiumData.getStadium("namboole");
+        StadiumEvent targetEvent = selectedEvent != null && target != null
+                && target.getId().equals(selectedEvent.getStadiumId())
+                ? selectedEvent : firstEventFor(target);
+        ledgerReturnScreen = "booking".equals(currentScreen) ? "booking" : "directory";
+        currentScreen = "seats";
+        setHeader("Booked seats", "See every seat already taken, by stadium and by event.");
+        contentHost.removeAll();
+        contentHost.add(buildSeatLedgerContent(), BorderLayout.CENTER);
+        contentHost.revalidate();
+        contentHost.repaint();
+        selectLedgerStadium(target);
+        selectLedgerEvent(targetEvent);
+        refreshSeatLedger();
+        showStatus("Booked seats");
+    }
+
+    private StadiumEvent firstEventFor(Stadium stadium) {
+        List<StadiumEvent> events = StadiumData.getEvents(stadium.getId());
+        return events.isEmpty() ? StadiumData.getEvents().get(0) : events.get(0);
+    }
+
+    private JPanel buildSeatLedgerContent() {
+        JPanel page = new JPanel(new BorderLayout(0, 14));
+        page.setBackground(PAGE);
+        page.setBorder(new EmptyBorder(20, 0, 22, 0));
+
+        // BorderLayout has a single NORTH slot, so the title row and the summary
+        // card are stacked in one wrapper instead of overlapping each other.
+        JPanel north = new JPanel(new GridBagLayout());
+        north.setOpaque(false);
+        GridBagConstraints northConstraints = new GridBagConstraints();
+        northConstraints.gridx = 0;
+        northConstraints.gridy = 0;
+        northConstraints.weightx = 1;
+        northConstraints.fill = GridBagConstraints.HORIZONTAL;
+        northConstraints.anchor = GridBagConstraints.NORTH;
+
+        JPanel top = new JPanel(new BorderLayout(16, 0));
+        top.setOpaque(false);
+
+        JPanel titleBox = new JPanel(new GridBagLayout());
+        titleBox.setOpaque(false);
+        GridBagConstraints backConstraints = new GridBagConstraints();
+        backConstraints.anchor = GridBagConstraints.WEST;
+        JButton back = createOutlineButton("← Back to stadiums", BLUE);
+        back.addActionListener(event -> showStadiumDirectory());
+        titleBox.add(back, backConstraints);
+
+        GridBagConstraints titleConstraints = new GridBagConstraints();
+        titleConstraints.gridx = 0;
+        titleConstraints.anchor = GridBagConstraints.WEST;
+        titleConstraints.fill = GridBagConstraints.HORIZONTAL;
+        titleConstraints.weightx = 1;
+        JLabel title = new JLabel("Seats booked so far");
+        title.setForeground(TEXT);
+        title.setFont(title.getFont().deriveFont(Font.BOLD, 21f));
+        titleConstraints.gridy = 1;
+        titleConstraints.insets = new Insets(7, 0, 0, 0);
+        titleBox.add(title, titleConstraints);
+        JLabel subtitle = new JLabel("Occupancy of the venue and event you are booking on.");
+        subtitle.setForeground(MUTED);
+        subtitle.setFont(subtitle.getFont().deriveFont(Font.PLAIN, 11f));
+        titleConstraints.gridy = 2;
+        titleConstraints.insets = new Insets(3, 0, 0, 0);
+        titleBox.add(subtitle, titleConstraints);
+        top.add(titleBox, BorderLayout.WEST);
+
+        JPanel pickers = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
+        pickers.setOpaque(false);
+        ledgerStadiumCombo = new JComboBox<>();
+        for (Stadium stadium : StadiumData.getStadiums()) {
+            ledgerStadiumCombo.addItem(stadium.getName());
+        }
+        ledgerStadiumCombo.setPreferredSize(new Dimension(280, 38));
+        ledgerStadiumCombo.setBackground(WHITE);
+        styleCombo(ledgerStadiumCombo);
+        ledgerStadiumCombo.addActionListener(event -> {
+            Stadium stadium = StadiumData.getStadium(ledgerStadiumCombo.getSelectedIndex() >= 0
+                    ? StadiumData.getStadiums().get(ledgerStadiumCombo.getSelectedIndex()).getId() : null);
+            if (stadium != null) {
+                loadLedgerEvents(stadium);
+            }
+        });
+        ledgerEventCombo = new JComboBox<>();
+        ledgerEventCombo.setPreferredSize(new Dimension(340, 38));
+        ledgerEventCombo.setBackground(WHITE);
+        styleCombo(ledgerEventCombo);
+        ledgerEventCombo.addActionListener(event -> refreshSeatLedger());
+        pickers.add(labelled("Stadium", ledgerStadiumCombo));
+        pickers.add(labelled("Event", ledgerEventCombo));
+        top.add(pickers, BorderLayout.EAST);
+        north.add(top, northConstraints);
+
+        JPanel summaryCard = createCard();
+        summaryCard.setLayout(new BorderLayout(0, 8));
+        summaryCard.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(BORDER), new EmptyBorder(14, 16, 14, 16)));
+        ledgerSummaryLabel = new JLabel("—");
+        ledgerSummaryLabel.setForeground(TEXT);
+        ledgerSummaryLabel.setFont(ledgerSummaryLabel.getFont().deriveFont(Font.BOLD, 14f));
+        ledgerSectionLabel = new JLabel("—");
+        ledgerSectionLabel.setForeground(MUTED);
+        ledgerSectionLabel.setFont(ledgerSectionLabel.getFont().deriveFont(Font.PLAIN, 11f));
+        summaryCard.add(ledgerSummaryLabel, BorderLayout.NORTH);
+        summaryCard.add(ledgerSectionLabel, BorderLayout.CENTER);
+        northConstraints.gridy = 1;
+        northConstraints.insets = new Insets(14, 0, 0, 0);
+        north.add(summaryCard, northConstraints);
+        page.add(north, BorderLayout.NORTH);
+
+        ledgerTableModel = new DefaultTableModel(
+                new Object[]{"Seat", "Section", "Row", "Number", "Price tier", "Price",
+                        "Reference", "Booked by", "Booked on"}, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
+        };
+        ledgerTable = new JTable(ledgerTableModel);
+        configureLedgerTable();
+        JScrollPane scroll = new JScrollPane(ledgerTable);
+        scroll.setBorder(BorderFactory.createEmptyBorder());
+        scroll.getViewport().setBackground(WHITE);
+        scroll.getVerticalScrollBar().setUnitIncrement(18);
+
+        JPanel tableCard = createCard();
+        tableCard.setLayout(new BorderLayout(0, 10));
+        tableCard.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(BORDER), new EmptyBorder(14, 14, 14, 14)));
+        JLabel hint = new JLabel("Every confirmed seat for the selected event, newest first.");
+        hint.setForeground(MUTED);
+        hint.setFont(hint.getFont().deriveFont(Font.PLAIN, 10f));
+        tableCard.add(hint, BorderLayout.NORTH);
+        tableCard.add(scroll, BorderLayout.CENTER);
+        page.add(tableCard, BorderLayout.CENTER);
+        return page;
+    }
+
+    private JPanel labelled(String text, JComponent field) {
+        JPanel box = new JPanel(new BorderLayout(0, 3));
+        box.setOpaque(false);
+        JLabel caption = new JLabel(text);
+        caption.setForeground(MUTED);
+        caption.setFont(caption.getFont().deriveFont(Font.BOLD, 10f));
+        box.add(caption, BorderLayout.NORTH);
+        box.add(field, BorderLayout.CENTER);
+        return box;
+    }
+
+    private void styleCombo(JComboBox<String> combo) {
+        combo.setFont(combo.getFont().deriveFont(Font.PLAIN, 11f));
+        combo.setFocusable(false);
+    }
+
+    private void configureLedgerTable() {
+        ledgerTable.setBackground(WHITE);
+        ledgerTable.setForeground(TEXT);
+        ledgerTable.setRowHeight(32);
+        ledgerTable.setShowVerticalLines(false);
+        ledgerTable.setGridColor(new Color(235, 240, 247));
+        ledgerTable.setIntercellSpacing(new Dimension(0, 1));
+        ledgerTable.setSelectionBackground(new Color(219, 234, 254));
+        ledgerTable.setSelectionForeground(TEXT);
+        ledgerTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        ledgerTable.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
+        ledgerTable.setFillsViewportHeight(true);
+        JTableHeader header = ledgerTable.getTableHeader();
+        header.setBackground(SKY);
+        header.setForeground(BLUE_DARK);
+        header.setFont(header.getFont().deriveFont(Font.BOLD, 11f));
+        header.setReorderingAllowed(false);
+        header.setPreferredSize(new Dimension(100, 38));
+        int[] widths = {95, 135, 60, 80, 120, 120, 100, 150, 150};
+        for (int column = 0; column < widths.length; column++) {
+            ledgerTable.getColumnModel().getColumn(column).setPreferredWidth(widths[column]);
+        }
+    }
+
+    private void selectLedgerStadium(Stadium stadium) {
+        if (ledgerStadiumCombo == null || stadium == null) {
+            return;
+        }
+        List<Stadium> stadiums = StadiumData.getStadiums();
+        int index = stadiums.indexOf(stadium);
+        if (index >= 0) {
+            ledgerStadiumCombo.setSelectedIndex(index);
+            loadLedgerEvents(stadium);
+        }
+    }
+
+    private void loadLedgerEvents(Stadium stadium) {
+        if (ledgerEventCombo == null) {
+            return;
+        }
+        int previousIndex = ledgerEventCombo.getSelectedIndex();
+        String previousId = previousIndex >= 0 && previousIndex < ledgerEventOptions.size()
+                ? ledgerEventOptions.get(previousIndex).getId() : null;
+        ledgerEventCombo.removeAllItems();
+        ledgerEventOptions = new ArrayList<>();
+        for (StadiumEvent event : StadiumData.getEvents(stadium.getId())) {
+            ledgerEventOptions.add(event);
+            ledgerEventCombo.addItem(ledgerEventLabel(event));
+        }
+        int restore = -1;
+        for (int index = 0; index < ledgerEventOptions.size(); index++) {
+            if (ledgerEventOptions.get(index).getId().equals(previousId)) {
+                restore = index;
+                break;
+            }
+        }
+        if (restore >= 0) {
+            ledgerEventCombo.setSelectedIndex(restore);
+        } else if (ledgerEventCombo.getItemCount() > 0) {
+            ledgerEventCombo.setSelectedIndex(0);
+        }
+    }
+
+    private String ledgerEventLabel(StadiumEvent event) {
+        return event.getHeadline() + "  •  " + event.getWhenLabel();
+    }
+
+    private void selectLedgerEvent(StadiumEvent event) {
+        if (ledgerEventCombo == null || event == null) {
+            return;
+        }
+        for (int index = 0; index < ledgerEventOptions.size(); index++) {
+            if (event.getId().equals(ledgerEventOptions.get(index).getId())) {
+                ledgerEventCombo.setSelectedIndex(index);
+                return;
+            }
+        }
+    }
+
+    /** Rebuilds the ledger table and its summary for the chosen stadium and event. */
+    private void refreshSeatLedger() {
+        if (ledgerTableModel == null || ledgerStadiumCombo == null) {
+            return;
+        }
+        int stadiumIndex = ledgerStadiumCombo.getSelectedIndex();
+        if (stadiumIndex < 0) {
+            return;
+        }
+        Stadium stadium = StadiumData.getStadiums().get(stadiumIndex);
+        int eventIndex = ledgerEventCombo == null ? -1 : ledgerEventCombo.getSelectedIndex();
+        StadiumEvent event = eventIndex >= 0 && eventIndex < ledgerEventOptions.size()
+                ? ledgerEventOptions.get(eventIndex) : null;
+
+        Map<SeatKey, Booking> owner = new LinkedHashMap<>();
+        for (Booking booking : bookingService.getBookingsForEvent(event)) {
+            for (SeatKey key : booking.getSeats()) {
+                owner.putIfAbsent(key, booking);
+            }
+        }
+        List<SeatKey> booked = new ArrayList<>(bookingService.getBookedSeatKeys(event));
+        booked.sort(SeatKey::compareTo);
+
+        int total = bookingService.getTotalSeatCount(event);
+        ledgerTableModel.setRowCount(0);
+        Map<String, Integer> perSection = new LinkedHashMap<>();
+        for (SeatKey key : booked) {
+            Booking booking = owner.get(key);
+            Stadium venue = StadiumData.getStadium(stadium.getId());
+            SeatSection section = venue == null ? null : venue.getSection(key.getSection());
+            perSection.merge(key.getSection(), 1, Integer::sum);
+            ledgerTableModel.addRow(new Object[]{
+                    key.display(),
+                    section == null ? key.getSection() : section.getLabel(),
+                    key.getRow(),
+                    key.getNumber(),
+                    bookingService.getRowTierName(key.getRow(),
+                            section == null ? 1 : section.getRows()),
+                    currency(bookingService.getSeatPrice(event, key)),
+                    booking == null ? "—" : booking.getReference(),
+                    booking == null ? "—" : booking.getCustomerName(),
+                    booking == null ? "—" : formatStamp(booking.getCreatedAt())
+            });
+        }
+
+        double vacancy = bookingService.getVacancyPercentage(event);
+        // Two decimals, so a nearly empty ground never reads as a flat "100.0%".
+        String vacancyText = String.format(Locale.US, "%.2f", vacancy);
+        if (vacancyText.endsWith("00")) {
+            vacancyText = vacancyText.substring(0, vacancyText.length() - 3);
+        }
+        ledgerSummaryLabel.setText(booked.size() + (booked.size() == 1 ? " seat" : " seats")
+                + " booked of " + formatCapacity(total) + "  •  "
+                + vacancyText + "% vacant  •  "
+                + (event == null ? "—" : event.getHeadline()));
+        StringBuilder sections = new StringBuilder("By section:  ");
+        if (stadium != null) {
+            for (SeatSection section : stadium.getSections()) {
+                if (sections.length() > "By section:  ".length()) {
+                    sections.append("     ");
+                }
+                sections.append(section.getId()).append(" ")
+                        .append(section.getLabel()).append("  ")
+                        .append(perSection.getOrDefault(section.getId(), 0))
+                        .append('/').append(formatCapacity(section.getSeatCount()));
+            }
+        }
+        ledgerSectionLabel.setText(sections.toString());
+    }
+
+    private String formatStamp(java.time.Instant instant) {
+        if (instant == null) {
+            return "—";
+        }
+        return java.time.format.DateTimeFormatter.ofPattern("d MMM yyyy, HH:mm")
+                .withZone(ZoneId.systemDefault())
+                .format(instant);
     }
 
     // ---------------------------------------------------------------------
@@ -2231,6 +2628,311 @@ public final class StadiumBookingApp extends JFrame {
             setBorder(new EmptyBorder(0, 8, 0, 8));
             return component;
         }
+    }
+
+    /** One row in a live suggestion list. */
+    private static final class Suggestion {
+        final String label;
+        final String detail;
+        final String value;
+
+        Suggestion(String label, String detail, String value) {
+            this.label = label;
+            this.detail = detail == null ? "" : detail;
+            this.value = value;
+        }
+    }
+
+    /**
+     * A live suggestion list attached to a search field. The list refreshes shortly
+     * after every keystroke and can be driven with the arrow keys, Enter, Escape or
+     * the mouse.
+     *
+     * <p>Choosing a row writes the suggestion back into the field, which fires the
+     * field's document listener and so re-runs the existing search filter.
+     */
+    private final class SearchSuggestions {
+        private static final int MAX_ROWS = 8;
+        private final JTextField field;
+        private final Function<String, List<Suggestion>> source;
+        private final Timer debounce;
+        private final JPopupMenu popup = new JPopupMenu();
+        private final JList<Suggestion> list = new JList<>();
+
+        SearchSuggestions(JTextField field, Function<String, List<Suggestion>> source) {
+            this.field = field;
+            this.source = source;
+            this.debounce = new Timer(110, event -> refresh());
+            this.debounce.setRepeats(false);
+
+            list.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+            list.setCellRenderer(new SuggestionRenderer());
+            list.setBackground(WHITE);
+            list.setFixedCellHeight(44);
+            list.setBorder(new EmptyBorder(4, 0, 4, 0));
+            list.setVisibleRowCount(MAX_ROWS);
+
+            // A non-focusable popup never steals focus, so the field keeps the caret
+            // and the arrow keys keep working while the list is open.
+            popup.setFocusable(false);
+            popup.setBackground(WHITE);
+            popup.setBorder(BorderFactory.createLineBorder(BORDER));
+            popup.add(list);
+            list.addMouseListener(new MouseAdapter() {
+                @Override
+                public void mousePressed(MouseEvent event) {
+                    int index = list.locationToIndex(event.getPoint());
+                    if (index >= 0) {
+                        list.setSelectedIndex(index);
+                        accept(index);
+                    }
+                }
+            });
+
+            field.getDocument().addDocumentListener(new DocumentListener() {
+                @Override
+                public void insertUpdate(DocumentEvent event) {
+                    schedule();
+                }
+
+                @Override
+                public void removeUpdate(DocumentEvent event) {
+                    schedule();
+                }
+
+                @Override
+                public void changedUpdate(DocumentEvent event) {
+                    schedule();
+                }
+            });
+            field.addKeyListener(new KeyAdapter() {
+                @Override
+                public void keyPressed(KeyEvent event) {
+                    handleKey(event);
+                }
+            });
+            field.addFocusListener(new FocusAdapter() {
+                @Override
+                public void focusGained(FocusEvent event) {
+                    schedule();
+                }
+
+                @Override
+                public void focusLost(FocusEvent event) {
+                    hideLater();
+                }
+            });
+        }
+
+        private void schedule() {
+            debounce.restart();
+        }
+
+        private void hideLater() {
+            // Let a click on the popup finish before dismissing it.
+            Timer closer = new Timer(120, event -> popup.setVisible(false));
+            closer.setRepeats(false);
+            closer.start();
+        }
+
+        private void refresh() {
+            List<Suggestion> suggestions = source.apply(field.getText());
+            if (suggestions.isEmpty()) {
+                suggestions = List.of(new Suggestion("No matches",
+                        "Try a different word", null));
+            }
+            if (suggestions.size() > MAX_ROWS) {
+                suggestions = new ArrayList<>(suggestions.subList(0, MAX_ROWS));
+            }
+            DefaultListModel<Suggestion> model = new DefaultListModel<>();
+            for (Suggestion suggestion : suggestions) {
+                model.addElement(suggestion);
+            }
+            list.setModel(model);
+            list.setSelectedIndex(0);
+            if (!field.isFocusOwner()) {
+                return;
+            }
+            popup.setPopupSize(Math.max(field.getWidth(), 340),
+                    Math.min(MAX_ROWS, suggestions.size()) * 46 + 8);
+            popup.show(field, 0, field.getHeight() + 2);
+        }
+
+        private void handleKey(KeyEvent event) {
+            if (event.getKeyCode() == KeyEvent.VK_ESCAPE) {
+                if (popup.isVisible()) {
+                    popup.setVisible(false);
+                    event.consume();
+                }
+                return;
+            }
+            if (event.getKeyCode() == KeyEvent.VK_DOWN && popup.isVisible()) {
+                if (list.getSelectedIndex() < list.getModel().getSize() - 1) {
+                    list.setSelectedIndex(list.getSelectedIndex() + 1);
+                }
+                event.consume();
+                return;
+            }
+            if (event.getKeyCode() == KeyEvent.VK_UP && popup.isVisible()) {
+                if (list.getSelectedIndex() > 0) {
+                    list.setSelectedIndex(list.getSelectedIndex() - 1);
+                }
+                event.consume();
+                return;
+            }
+            if (event.getKeyCode() == KeyEvent.VK_ENTER && popup.isVisible()) {
+                accept(list.getSelectedIndex());
+                event.consume();
+            }
+        }
+
+        private void accept(int index) {
+            popup.setVisible(false);
+            if (index < 0 || index >= list.getModel().getSize()) {
+                return;
+            }
+            Suggestion suggestion = list.getModel().getElementAt(index);
+            if (suggestion.value == null) {
+                return;
+            }
+            field.setText(suggestion.value);
+            field.setCaretPosition(field.getText().length());
+            field.requestFocusInWindow();
+        }
+    }
+
+    private final class SuggestionRenderer extends DefaultListCellRenderer {
+        @Override
+        public Component getListCellRendererComponent(JList<?> source, Object value, int index,
+                                                      boolean selected, boolean focused) {
+            if (!(value instanceof Suggestion suggestion)) {
+                return super.getListCellRendererComponent(source, value, index, selected, focused);
+            }
+            JPanel row = new JPanel(new BorderLayout(0, 1));
+            row.setOpaque(true);
+            row.setBackground(suggestion.value == null ? WHITE
+                    : selected ? new Color(219, 234, 254) : WHITE);
+            JLabel label = new JLabel(suggestion.label);
+            label.setForeground(suggestion.value == null ? MUTED : TEXT);
+            label.setFont(label.getFont().deriveFont(
+                    suggestion.value == null ? Font.PLAIN : Font.BOLD, 11f));
+            JLabel detail = new JLabel(suggestion.detail);
+            detail.setForeground(suggestion.value == null ? new Color(160, 172, 188)
+                    : selected ? BLUE_DARK : MUTED);
+            detail.setFont(detail.getFont().deriveFont(Font.PLAIN, 10f));
+            row.add(label, BorderLayout.NORTH);
+            row.add(detail, BorderLayout.CENTER);
+            row.setBorder(new EmptyBorder(6, 12, 6, 12));
+            return row;
+        }
+    }
+
+    private List<Suggestion> stadiumSuggestions(String query) {
+        String q = query == null ? "" : query.trim().toLowerCase(Locale.ENGLISH);
+        List<Suggestion> suggestions = new ArrayList<>();
+        int venues = 0;
+        for (Stadium stadium : StadiumData.getStadiums()) {
+            List<StadiumEvent> events = StadiumData.getEvents(stadium.getId());
+            boolean eventMatch = events.stream()
+                    .anyMatch(event -> event.searchableText().contains(q));
+            if (!q.isEmpty() && !stadium.searchableText().contains(q) && !eventMatch) {
+                continue;
+            }
+            venues++;
+            StadiumEvent next = events.isEmpty() ? null : events.get(0);
+            suggestions.add(new Suggestion(stadium.getName(),
+                    stadium.getLocation() + "  •  " + formatCapacity(stadium.getCapacity()) + " seats"
+                            + (next == null ? "" : "  •  next " + next.getDate().format(DATE_FORMATTER)),
+                    stadium.getName()));
+        }
+        if (q.isEmpty()) {
+            return suggestions;
+        }
+        // Teams and artists hosted at the venue are useful shortcuts too.
+        for (String name : distinctTeamsAndArtists(q)) {
+            suggestions.add(new Suggestion(name, "Team or artist appearing at a venue", name));
+        }
+        if (suggestions.isEmpty()) {
+            return suggestions;
+        }
+        suggestions.add(new Suggestion(venues + (venues == 1 ? " venue matches" : " venues match"),
+                "Press Enter to see the full list", null));
+        return suggestions;
+    }
+
+    private List<Suggestion> eventSuggestions(String query) {
+        String q = query == null ? "" : query.trim().toLowerCase(Locale.ENGLISH);
+        List<Suggestion> suggestions = new ArrayList<>();
+        Stadium stadium = selectedStadium;
+        List<StadiumEvent> events = stadium == null
+                ? StadiumData.getEvents() : StadiumData.getEvents(stadium.getId());
+        int matches = 0;
+        for (StadiumEvent event : events) {
+            if (!q.isEmpty() && !event.searchableText().contains(q)
+                    && (stadium == null || !stadium.searchableText().contains(q))) {
+                continue;
+            }
+            matches++;
+            Stadium home = StadiumData.getStadium(event.getStadiumId());
+            suggestions.add(new Suggestion(event.getHeadline(),
+                    (home == null ? "" : home.getName() + "  •  ")
+                            + event.getDate().format(DATE_FORMATTER) + "  •  "
+                            + event.getStartTime().format(TIME_FORMATTER),
+                    event.getHeadline()));
+        }
+        if (!q.isEmpty()) {
+            for (String name : distinctTeamsAndArtists(q)) {
+                suggestions.add(new Suggestion(name, "Team or artist", name));
+            }
+        }
+        if (suggestions.isEmpty()) {
+            return suggestions;
+        }
+        suggestions.add(new Suggestion(matches + (matches == 1 ? " event matches" : " events match"),
+                "Press Enter to see the full list", null));
+        return suggestions;
+    }
+
+    private List<Suggestion> bookingSuggestions(String query) {
+        String q = query == null ? "" : query.trim().toLowerCase(Locale.ENGLISH);
+        List<Suggestion> suggestions = new ArrayList<>();
+        int matches = 0;
+        for (Booking booking : bookingService.getBookings()) {
+            if (!q.isEmpty() && !bookingSearchText(booking).contains(q)) {
+                continue;
+            }
+            matches++;
+            Stadium stadium = StadiumData.getStadium(booking.getStadiumId());
+            suggestions.add(new Suggestion(booking.getReference() + "  •  " + booking.getEvent(),
+                    (stadium == null ? "" : stadium.getName() + "  •  ")
+                            + booking.getSeatDisplay() + "  •  " + booking.getStatus().name(),
+                    booking.getReference()));
+        }
+        if (suggestions.isEmpty()) {
+            return suggestions;
+        }
+        suggestions.add(new Suggestion(matches + (matches == 1 ? " booking matches" : " bookings match"),
+                "Press Enter to see the full list", null));
+        return suggestions;
+    }
+
+    /** Distinct team and artist names in the dataset that contain the query. */
+    private List<String> distinctTeamsAndArtists(String query) {
+        List<String> names = new ArrayList<>();
+        for (StadiumEvent event : StadiumData.getEvents()) {
+            for (String name : List.of(
+                    event.getTeamOne() == null ? "" : event.getTeamOne(),
+                    event.getTeamTwo() == null ? "" : event.getTeamTwo(),
+                    event.getArtist() == null ? "" : event.getArtist())) {
+                if (name.isEmpty() || names.contains(name)) {
+                    continue;
+                }
+                if (name.toLowerCase(Locale.ENGLISH).contains(query)) {
+                    names.add(name);
+                }
+            }
+        }
+        return names;
     }
 
     private static final class SearchField extends JTextField {
