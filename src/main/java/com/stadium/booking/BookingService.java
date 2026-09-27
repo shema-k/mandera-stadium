@@ -21,7 +21,8 @@ import java.util.stream.Collectors;
 @SuppressWarnings("this-escape")
 public class BookingService {
     public static final int MAX_SEATS_PER_BOOKING = 6;
-    public static final double BOOKING_FEE = 2.50;
+    /** Ticketing fee charged once per reservation, in Ugandan shillings. */
+    public static final double BOOKING_FEE = 15000.0;
 
     private final Map<SeatKey, Seat> seatInventory = new LinkedHashMap<>();
     private final List<Booking> bookings = new ArrayList<>();
@@ -117,8 +118,12 @@ public class BookingService {
         return 0.70;
     }
 
+    /**
+     * Rounds a charge to the nearest 500 shillings, which is how Ugandan
+     * ticketing prices are normally rounded for cash sales.
+     */
     private double roundMoney(double value) {
-        return Math.round(value * 100.0) / 100.0;
+        return Math.round(value / 500.0) * 500.0;
     }
 
     private void updateNextReferenceNumber() {
@@ -415,6 +420,16 @@ public class BookingService {
         return BOOKING_FEE;
     }
 
+    /**
+     * Formats an amount as Ugandan shillings, for example {@code UGX 89,500}.
+     * Shared by every screen that shows a price so the format cannot drift.
+     */
+    public static String formatMoney(double amount) {
+        return "UGX " + java.text.NumberFormat
+                .getIntegerInstance(Locale.US)
+                .format(Math.round(amount));
+    }
+
     public double getTotalCharge(List<Seat> selectedSeats) {
         if (selectedSeats == null || selectedSeats.isEmpty()) {
             return 0.0;
@@ -486,7 +501,8 @@ public class BookingService {
             selectedKeys.add(seat.getKey());
         }
         if (selectedKeys.size() > MAX_SEATS_PER_BOOKING) {
-            throw new IllegalArgumentException("You can book up to " + MAX_SEATS_PER_BOOKING + " seats");
+            throw new IllegalArgumentException("A reservation can contain up to "
+                    + MAX_SEATS_PER_BOOKING + " seats");
         }
         for (SeatKey key : selectedKeys) {
             if (isBooked(key)) {
@@ -494,6 +510,8 @@ public class BookingService {
             }
         }
 
+        // Customer identity is stored for the receipt and history only. There is intentionally
+        // no limit on how many reservations one person may create.
         List<SeatKey> keys = new ArrayList<>(selectedKeys);
         keys.sort(SeatKey::compareTo);
         double total = getTotalCharge(keys.stream()

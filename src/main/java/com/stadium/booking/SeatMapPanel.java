@@ -237,8 +237,8 @@ final class SeatMapPanel extends JPanel {
         } else {
             if (selectedSeats.size() >= BookingService.MAX_SEATS_PER_BOOKING) {
                 if (messageListener != null) {
-                    messageListener.accept("You can select up to "
-                            + BookingService.MAX_SEATS_PER_BOOKING + " seats per booking");
+                    messageListener.accept("Up to " + BookingService.MAX_SEATS_PER_BOOKING
+                            + " seats per reservation; booking count is unlimited per person");
                 }
                 return;
             }
@@ -310,7 +310,7 @@ final class SeatMapPanel extends JPanel {
     }
 
     private String currency(double value) {
-        return String.format(Locale.US, "$%.2f", value);
+        return BookingService.formatMoney(value);
     }
 
     private final class SeatCanvas extends JPanel {
