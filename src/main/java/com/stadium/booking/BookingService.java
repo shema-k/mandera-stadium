@@ -1,6 +1,7 @@
 package com.stadium.booking;
 
 import java.io.File;
+import java.io.IOException;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -10,6 +11,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.UUID;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -21,7 +23,12 @@ import java.util.stream.Collectors;
  */
 @SuppressWarnings("this-escape")
 public class BookingService {
-    public static final int MAX_SEATS_PER_BOOKING = 6;
+    /**
+     * Largest number of seats one reservation may hold. High enough for a family or
+     * a club party to book together, low enough that the price outline and the
+     * receipt stay readable in one screen.
+     */
+    public static final int MAX_SEATS_PER_BOOKING = 20;
     /** Ticketing fee charged once per reservation, in Ugandan shillings. */
     public static final double BOOKING_FEE = 15000.0;
 
@@ -35,6 +42,11 @@ public class BookingService {
 
     public BookingService() {
         this(new BookingStore(new File("stadium-bookings.dat").toPath()));
+    }
+
+    /** Uses a caller-supplied database, so the file can be chosen by the caller. */
+    public BookingService(Database database) {
+        this(new BookingStore(new File("stadium-bookings.dat").toPath(), database));
     }
 
     public BookingService(BookingStore store) {
@@ -127,7 +139,7 @@ public class BookingService {
         return stadium == null ? StadiumData.getStadium("namboole") : stadium;
     }
 
-    public double getRowPriceMultiplier(int row, int rows) {
+    public static double getRowPriceMultiplier(int row, int rows) {
         if (rows <= 1) {
             return 1.0;
         }
@@ -143,122 +155,6 @@ public class BookingService {
             return 0.95;
         }
         return 0.70;
-    }
-
-    /**
-     * Spreads a reservation across the four seating sections instead of letting a
-     * single booking take every seat from one stand.
-     *
-     * <p>Seats are dealt round-robin through sections A to D, and within a section
-     * the best seat still free is taken: the front row first, then the lowest free
-     * seat number. Seats the customer already chose are kept, so this only fills in
-     * the sections that would otherwise be left empty.
-     *
-     * @param requested the seats the customer picked
-     * @return the final seat list, spread across the sections
-     */
-    public List<Seat> allocateSpreadSeats(List<Seat> requested) {
-        if (requested == null || requested.isEmpty()) {
-            return new ArrayList<>();
-        }
-        Stadium stadium = stadiumFor(activeEvent);
-        List<SeatSection> sections = stadium.getSections();
-        Map<String, Integer> targets = spreadTargets(sections.size(), requested.size());
-
-        Map<String, List<Seat>> chosen = new LinkedHashMap<>();
-        for (SeatSection section : sections) {
-            chosen.put(section.getId(), new ArrayList<>());
-        }
-        // Keep the customer's own picks first, within the per-section targets.
-        for (Seat seat : requested) {
-            String sectionId = seat.getKey().getSection();
-            List<Seat> bucket = chosen.get(sectionId);
-            int target = targets.getOrDefault(sectionId, 0);
-            if (bucket != null && bucket.size() < target) {
-                bucket.add(seat);
-            }
-        }
-        for (SeatSection section : sections) {
-            List<Seat> bucket = chosen.get(section.getId());
-            int target = targets.getOrDefault(section.getId(), 0);
-            bucket.addAll(nextFreeSeats(section, target - bucket.size(), List.of()));
-        }
-
-        List<Seat> allocation = new ArrayList<>();
-        for (SeatSection section : sections) {
-            allocation.addAll(chosen.get(section.getId()));
-        }
-        if (allocation.size() < requested.size()) {
-            // Not enough free seats to spread; top up from anywhere still free.
-            allocation.addAll(nextFreeSeats(stadium, requested.size() - allocation.size(),
-                    allocation));
-        }
-        allocation.sort(Comparator.comparing(seat -> seat.getKey()));
-        return allocation;
-    }
-
-    /**
-     * Divides {@code count} seats between the sections as evenly as possible,
-     * giving the earlier sections any remainder.
-     */
-    private Map<String, Integer> spreadTargets(int sectionCount, int count) {
-        Map<String, Integer> targets = new LinkedHashMap<>();
-        if (sectionCount <= 0) {
-            return targets;
-        }
-        int base = count / sectionCount;
-        int remainder = count % sectionCount;
-        for (int index = 0; index < sectionCount; index++) {
-            targets.put(String.valueOf((char) ('A' + index)),
-                    base + (index < remainder ? 1 : 0));
-        }
-        return targets;
-    }
-
-    /**
-     * Returns up to {@code count} free seats in a section, best first: the front
-     * row, then the lowest seat number.
-     */
-    private List<Seat> nextFreeSeats(SeatSection section, int count, List<Seat> already) {
-        List<Seat> found = new ArrayList<>();
-        if (section == null || count <= 0) {
-            return found;
-        }
-        for (int row = 1; row <= section.getRows() && found.size() < count; row++) {
-            for (int number = 1; number <= section.getSeatsPerRow() && found.size() < count; number++) {
-                SeatKey key = new SeatKey(section.getId(), row, number);
-                if (isSeatSelectable(key) && !containsSeat(already, key)) {
-                    Seat seat = seatInventory.get(key);
-                    if (seat != null) {
-                        found.add(seat);
-                    }
-                }
-            }
-        }
-        return found;
-    }
-
-    private List<Seat> nextFreeSeats(Stadium stadium, int count, List<Seat> already) {
-        List<Seat> found = new ArrayList<>();
-        if (stadium == null || count <= 0) {
-            return found;
-        }
-        for (SeatSection section : stadium.getSections()) {
-            if (found.size() >= count) {
-                break;
-            }
-            found.addAll(nextFreeSeats(section, count - found.size(), already));
-        }
-        return found;
-    }
-
-    private boolean containsSeat(List<Seat> seats, SeatKey key) {
-        for (Seat seat : seats) {
-            if (seat.getKey().equals(key)) {
-                return true;
-            }
-        }
-        return false;
     }
 
     /** Human-readable name of the price tier a row falls into. */
@@ -283,8 +179,30 @@ public class BookingService {
      * Rounds a charge to the nearest 500 shillings, which is how Ugandan
      * ticketing prices are normally rounded for cash sales.
      */
-    private double roundMoney(double value) {
+    static double roundMoney(double value) {
         return Math.round(value / 500.0) * 500.0;
+    }
+
+    /**
+     * A reference that is unique across the whole database, so two people booking
+     * at the same time never collide. Falls back to the in-memory counter when the
+     * application runs without a store.
+     */
+    private String nextReference() {
+        if (store != null) {
+            try {
+                String reference = store.allocateReference();
+                while (reference.startsWith("ST-")
+                        && reference.substring(3).matches("\\d+")
+                        && Integer.parseInt(reference.substring(3)) >= nextReferenceNumber) {
+                    nextReferenceNumber = Integer.parseInt(reference.substring(3)) + 1;
+                }
+                return reference;
+            } catch (IOException exception) {
+                // Fall through to the counter so booking can still be attempted.
+            }
+        }
+        return "ST-" + nextReferenceNumber++;
     }
 
     private void updateNextReferenceNumber() {
@@ -417,6 +335,27 @@ public class BookingService {
 
     public boolean isSeatSelectable(SeatKey key) {
         return getStatus(key) == SeatStatus.AVAILABLE && isBookingOpen(activeEvent);
+    }
+
+    /**
+     * Why a seat cannot be booked right now, in words meant for the customer.
+     * A seat can be unavailable because it is sold, because it does not exist on
+     * this venue's plan, or because booking is closed for the whole event, and
+     * the right response differs in each case.
+     */
+    public String unavailableReason(SeatKey key) {
+        String seat = key == null ? "That seat" : "Seat " + key.display();
+        if (key == null || !seatInventory.containsKey(key)) {
+            return seat + " is not a seat at this stadium";
+        }
+        if (isBooked(key)) {
+            return seat + " has already been booked. Please choose another seat.";
+        }
+        if (activeEvent != null && !isBookingOpen(activeEvent)) {
+            return seat + " cannot be booked because "
+                    + getBookingRestrictionMessage(activeEvent);
+        }
+        return seat + " is not available. Please choose another seat.";
     }
 
     public boolean isBooked(SeatKey key) {
@@ -555,6 +494,43 @@ public class BookingService {
                 .collect(Collectors.toList());
     }
 
+    /**
+ * Whether any booking carries the given email address or phone number.
+ *
+ * <p>A quick yes/no for the search box, so a customer can find their own booking
+ * by typing the details they booked with.
+ */
+public boolean hasBookingFor(String contact) {
+    return !findBookingsFor(contact).isEmpty();
+}
+
+    /** The bookings made with a given email address or phone number. */
+    public List<Booking> findBookingsFor(String contact) {
+        if (contact == null) {
+            return new ArrayList<>();
+        }
+        String wanted = contact.trim().toLowerCase(Locale.ENGLISH);
+        if (wanted.length() < 3) {
+            return new ArrayList<>();
+        }
+        return bookings.stream()
+                .filter(booking -> {
+                    String email = booking.getEmail() == null
+                            ? "" : booking.getEmail().trim().toLowerCase(Locale.ENGLISH);
+                    String phone = booking.getPhone() == null
+                            ? "" : booking.getPhone().trim().toLowerCase(Locale.ENGLISH);
+                    return email.equals(wanted) || phone.equals(wanted);
+                })
+                // Newest first. Bookings made inside the same millisecond share a
+                // timestamp, so the reference breaks the tie: references are
+                // allocated in order, which keeps the list stable rather than
+                // leaving two bookings in an arbitrary order.
+                .sorted(Comparator.comparing(Booking::getCreatedAt)
+                        .thenComparing(Booking::getReference)
+                        .reversed())
+                .collect(Collectors.toList());
+    }
+
     public List<Booking> getBookingsForEvent(StadiumEvent event) {
         if (event == null) {
             return new ArrayList<>();
@@ -623,6 +599,28 @@ public class BookingService {
      * Validates and commits a reservation for the currently selected event. A
      * seat is only marked booked after every selected seat has passed checks.
      */
+    /**
+ * Checks the contact details on their own, without booking anything.
+ *
+ * <p>Used when the details are collected in a dialog before the booking is
+ * confirmed, so a missing email is reported on that dialog rather than after the
+ * customer has already agreed to the purchase.
+ */
+public void validateCustomer(String customerName, String email, String phone) {
+        String name = customerName == null ? "" : customerName.trim();
+        String address = email == null ? "" : email.trim();
+        String number = phone == null ? "" : phone.trim();
+        if (name.length() < 2) {
+            throw new IllegalArgumentException("Please enter your name");
+        }
+        if (!address.matches("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$")) {
+            throw new IllegalArgumentException("Please enter a valid email address");
+        }
+        if (!number.matches("^[0-9+() .-]{7,20}$")) {
+            throw new IllegalArgumentException("Please enter a valid phone number");
+        }
+    }
+
     public synchronized Booking book(String customerName,
                                       String email,
                                       String phone,
@@ -638,15 +636,10 @@ public class BookingService {
         String normalizedEmail = email == null ? "" : email.trim();
         String normalizedPhone = phone == null ? "" : phone.trim();
 
-        if (normalizedName.length() < 2) {
-            throw new IllegalArgumentException("Please enter your name");
-        }
-        if (!normalizedEmail.matches("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$")) {
-            throw new IllegalArgumentException("Please enter a valid email address");
-        }
-        if (!normalizedPhone.matches("^[0-9+() .-]{7,20}$")) {
-            throw new IllegalArgumentException("Please enter a valid phone number");
-        }
+        // Same rules as validateCustomer, which is called before this when the details
+        // are collected in a dialog. Checked again here because this method is
+        // public and can be called without that dialog.
+        validateCustomer(customerName, email, phone);
         if (selectedSeats == null || selectedSeats.isEmpty()) {
             throw new IllegalArgumentException("Select at least one seat");
         }
@@ -657,7 +650,9 @@ public class BookingService {
                 throw new IllegalArgumentException("One of the selected seats is not available");
             }
             if (!isSeatSelectable(seat.getKey())) {
-                throw new IllegalArgumentException("Seat " + seat.getKey().display() + " is not selectable");
+                // Say why, so the customer knows whether to pick a different seat
+                // or to wait. "Not selectable" on its own told them nothing.
+                throw new IllegalArgumentException(unavailableReason(seat.getKey()));
             }
             selectedKeys.add(seat.getKey());
         }
@@ -678,14 +673,108 @@ public class BookingService {
         double total = getTotalCharge(keys.stream()
                 .map(seatInventory::get)
                 .collect(Collectors.toList()));
-        String reference = "ST-" + nextReferenceNumber;
-        nextReferenceNumber++;
+        String reference = nextReference();
         Booking booking = new Booking(reference, activeEvent.getStadiumId(), activeEvent.getId(),
                 activeEvent.getHeadline(), normalizedName, normalizedEmail, normalizedPhone,
                 keys, total, Instant.now(), activeEvent.getDate(), activeEvent.getStartTime());
         bookings.add(booking);
-        persist();
+        if (store != null) {
+            try {
+                store.save(booking);
+            } catch (IOException | RuntimeException exception) {
+                // The reservation never happened, so it must not linger in memory
+                // and must never be reported to the customer as confirmed.
+                bookings.remove(booking);
+                updateNextReferenceNumber();
+                if (exception instanceof BookingStore.SeatAlreadyBookedException) {
+                    throw new IllegalArgumentException(
+                            "One of those seats has just been booked by someone else. "
+                                    + "Please pick again.");
+                }
+                throw new IllegalStateException(
+                        "The booking could not be saved, so it has been cancelled. "
+                                + "Please try again.", exception);
+            }
+        }
         return booking;
+    }
+
+    /**
+     * Saves the seats somebody has chosen so they can come back to them later.
+     *
+     * <p>This is not a booking and the seats are not held, so the screen says so.
+     * Without it there is no way to note down a choice and finish later.
+     *
+     * @param label a name the customer will recognise it by
+     * @return the saved selection
+     */
+    public BookingStore.SavedSelection saveSelection(String label, List<Seat> seats) {
+        if (activeEvent == null) {
+            throw new IllegalArgumentException("Choose an event before saving a selection");
+        }
+        if (seats == null || seats.isEmpty()) {
+            throw new IllegalArgumentException("Choose at least one seat to save");
+        }
+        String clean = label == null || label.isBlank() ? "My seats" : label.trim();
+        if (clean.length() > 120) {
+            clean = clean.substring(0, 120);
+        }
+        List<SeatKey> keys = new ArrayList<>();
+        for (Seat seat : seats) {
+            keys.add(seat.getKey());
+        }
+        String id = "SS-" + UUID.randomUUID().toString().replace("-", "")
+                .substring(0, 8).toUpperCase(Locale.ENGLISH);
+        BookingStore.SavedSelection selection = new BookingStore.SavedSelection(id, clean,
+                activeEvent.getStadiumId(), activeEvent.getId(), activeEvent.getHeadline(),
+                keys, getTotalCharge(seats), Instant.now());
+        if (store != null) {
+            try {
+                store.saveSelection(selection);
+            } catch (IOException exception) {
+                throw new IllegalStateException(
+                        "That selection could not be saved. Please try again.", exception);
+            }
+        }
+        return selection;
+    }
+
+    /** Every saved selection, newest first. */
+    public List<BookingStore.SavedSelection> getSavedSelections() {
+        return store == null ? new ArrayList<>() : store.readSelections();
+    }
+
+    /**
+     * Whether a saved selection can still be booked: the event must still be open
+     * and every seat still on sale.
+     */
+    public String whySelectionCannotBeUsed(BookingStore.SavedSelection selection) {
+        if (selection == null) {
+            return "That selection is no longer saved";
+        }
+        StadiumEvent event = StadiumData.getEvent(selection.getEventId());
+        if (event == null) {
+            return "The event is no longer on the schedule";
+        }
+        if (!isBookingOpen(event)) {
+            return getBookingRestrictionMessage(event);
+        }
+        List<String> taken = new ArrayList<>();
+        for (SeatKey key : selection.getSeats()) {
+            if (!isSeatSelectable(key)) {
+                taken.add(key.display());
+            }
+        }
+        if (!taken.isEmpty()) {
+            return "Since you saved these, " + String.join(", ", taken)
+                    + (taken.size() == 1 ? " has" : " have") + " been booked";
+        }
+        return null;
+    }
+
+    /** Forgets a saved selection. */
+    public boolean deleteSavedSelection(String id) {
+        return store != null && store.deleteSelection(id);
     }
 
     /** Cancels a reservation and returns its seats to that event's inventory. */
@@ -696,21 +785,21 @@ public class BookingService {
         for (Booking booking : bookings) {
             if (booking.getReference().equals(reference) && booking.isConfirmed()) {
                 booking.cancel();
-                persist();
+                if (store != null) {
+                    try {
+                        // Saving the cancelled row also releases its seat rows, so the
+                        // seats return to the pool for everyone.
+                        store.save(booking);
+                    } catch (IOException | RuntimeException exception) {
+                        booking.restoreConfirmed();
+                        throw new IllegalStateException(
+                                "The cancellation could not be saved. Please try again.", exception);
+                    }
+                }
                 return true;
             }
         }
         return false;
     }
 
-    private void persist() {
-        if (store == null) {
-            return;
-        }
-        try {
-            store.write(bookings);
-        } catch (Exception ignored) {
-            // The in-memory reservation remains usable if the data file is locked.
-        }
-    }
 }

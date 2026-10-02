@@ -1,115 +1,165 @@
-# Stadium Select — Java Swing Seat Booking
+# Namboole Seat Booking — Java Swing
 
-A professional desktop stadium directory and seat-booking application built with Java Swing. The interface guides the user through a connected flow:
+A professional desktop seat-booking application for one stadium: **Mandela National
+Stadium (Namboole)**, Kampala, Uganda. Built with Java Swing, no frameworks and no
+build tool required.
 
-**Choose a stadium → choose a date → choose a game or concert → choose seats → confirm booking**
+**Open to everyone who books.** There are no staff accounts, no PINs, no roles and
+no sign-in. Every screen — the schedule, the seat map, your bookings, the occupancy
+report, the booked-seats list — opens directly. There is nothing to log into and
+nothing to unlock.
 
-## Features
+The flow a customer actually walks through:
 
-- Stadium directory with venue information
-- Search stadiums by name, city, country, team or artist
-- Eleven real Ugandan venues with locations, capacity and venue descriptions
-- Real published capacities, from Namboole's 45,202 down to Pece Stadium's 3,000
-- Box-shaped, oval and circular stadium layouts
-- Four seating ends/sides (A, B, C and D) with independent rows
-- Front rows use premium pricing; middle and back rows progressively decrease in price
-- Date-based event schedules for every stadium
-- Search events by team, artist, sport, date or time
-- Game events include the sport and both teams
-- Concert events include the artist and doors time
-- Event-specific seat pricing and availability
-- Price outline showing every selected seat, row tier, subtotal, booking fee and total due
-- Explicit **Confirm booked seats** button
-- Live vacancy percentage and remaining-seat count
-- Booking deadline shown for every event
-- Live countdown showing days, months, hours or minutes remaining
-- Special notices and requests section for cancellations, emergencies and venue announcements
-- Ability to submit a special request to the stadium team
-- Simplified booking form with only name, email and phone
-- Interactive seat map for sections A, B, C and D
-- Scalable map rendering, from 3,000-seat grounds up to Namboole's 45,202
-- Tapping a seat shows its exact seat number, status and price
-- No limit on the number of bookings per person; each reservation can contain up to six seats
-- Booking confirmation with a unique reference
-- Searchable booking history
-- Click any booking row to open complete booking and customer details
-- **Booked seats** section listing every seat taken so far, per stadium and per event
-- Occupancy summary with seats booked, total capacity, vacancy and a per-section breakdown
-- Booked seats view opens pre-set to the event you are booking, via **View booked seats** on the seat screen
-- Back buttons in the main header and opened dialogs for returning to the previous window
-- Hover, pressed and released highlighting on every button so the targeted control is always obvious
-- Status bar and tooltip name the button under the pointer and the button being clicked
-- Booking cancellation
-- Persistent H2 database for bookings and customer details
-- Bookings section reads complete records from the database
-- No external database server required; the embedded database is bundled in `lib/`
+**Pick an event → open its details → choose exact seats → confirm → pay → keep the receipt**
 
-## Included sample data
+## What it does
 
-Real Ugandan venues, clubs and artists. Capacities are the published figures, and each
-venue's seat grid totals exactly its stated capacity.
+**One stadium, opened straight away.** The application starts on Namboole itself with
+its schedule and notices, rather than asking you to choose a venue from a list of one.
+45,202 seats, the real published capacity, across four independent ends.
 
-| Venue | City | Capacity | Home club / use |
+**Four ends, each named and separately priced.**
+
+| End | Name | Rows × seats | Price from |
 |---|---|---|---|
-| Mandela National Stadium (Namboole) | Kampala | 45,202 | Uganda Cranes, URA FC, Police FC |
-| Hoima City Stadium | Hoima | 20,000 | Kitara FC |
-| Hamz Stadium (Nakivubo) | Kampala | 15,000 | Express FC |
-| St. Mary's Stadium, Kitende | Entebbe | 15,000 | Vipers SC |
-| Kyabazinga Stadium, Bugembe | Jinja | 12,000 | Jinja North United FC |
-| MTN Omondi Stadium, Lugogo | Kampala | 10,000 | KCCA FC |
-| Mutesa II Stadium, Wankulukuku | Kampala | 8,000 | Kampala city stadium |
-| FUFA Kadiba Stadium | Kampala | 7,000 | SC Villa |
-| Bunamwaya Stadium | Wakiso Town | 5,000 | Community club ground |
-| Mbale Municipal Stadium | Mbale | 5,000 | Eastern Uganda municipal ground |
-| Pece War Memorial Stadium | Gulu | 3,000 | Gulu United FC |
+| A | VIP Box | 114 × 99 | UGX 250,000 |
+| B | Main Stand | 127 × 89 | UGX 190,000 |
+| C | Terrace | 127 × 89 | UGX 140,000 |
+| D | Kampala End | 130 × 87 | UGX 95,000 |
 
-- Game schedules use real Uganda Premier League clubs — Vipers SC, SC Villa, KCCA FC,
-  Express FC, URA FC, Police FC, NEC FC, Kitara FC, Maroons FC, Mbarara City FC,
-  Lugazi FC, UPDF FC, Blacks Power FC, Kataka FC, Kigezi Homeboyz FC, BUL FC,
-  Gaddafi FC, Booma FC and more — plus the Uganda Cranes against regional national sides
-- Concerts use real Ugandan artists — Eddy Kenzo, Bobi Wine, Jose Chameleone, Bebe Cool,
-  Fik Fameica, Azawi, Spice Diana, King Saha, Radio & Weasel, Sheebah, John Blaq,
-  Juliana Kanyomozi and Iryn Namubiru
-- Football, netball and rugby fixtures, priced in Ugandan shillings (UGX) and rounded
-  to the nearest 500 shillings, with a UGX 15,000 ticketing fee per reservation
-- Seating sections A to D are the VIP Box, Main Stand, Terrace and Kampala End, with
-  front rows priced highest and the Kampala End cheapest
+Within every end the front rows cost most and the back rows least, on a four-tier
+curve. An event's own price factor scales the whole grid, so a concert is priced
+differently from a league game.
+
+**Exact seats.** Tapping a seat holds that precise seat and nothing else. The
+confirmation dialog repeats the seats you chose, and the booking contains those same
+seats — there is no rule quietly moving you to a "tidier" spread of seats.
+
+**Many seats in one booking.** Up to **20 seats** per reservation, so a family or a
+club party is booked in one go. There is no limit on how many bookings one person
+may make. A twenty-first seat is refused rather than trimmed, so nobody is charged
+for a seat they did not get.
+
+**Events with full detail.** Eight upcoming fixtures — Uganda Cranes, Vipers SC vs SC
+Villa, KCCA vs Express, and concerts from Eddy Kenzo, Bobi Wine and Jose Chameleone.
+Each event's details page gives the date, start and doors times, the booking deadline
+with a live countdown, the sport or artist, both teams, the description, price from,
+best available, current vacancy, and every notice affecting it. Tapping an event
+anywhere opens that page, with the booking option on it.
+
+**Receipts.** Every booking produces an itemised receipt: each seat on its own line
+with its section, price tier and amount; a per-end subtotal showing the unit price it
+was worked out at; the ticketing fee; and the total paid. It can be saved to a file or
+printed, and reopened later from the booking history.
+
+**Your bookings.** **My bookings** opens directly and lists every reservation, with
+the reference, event, date, seats, total and status. Open any row for the full
+details, its charges and its receipt, or to cancel it. Search by reference, event or
+seat to find yours.
+
+**Your seats are held while you decide.** Five-minute holds with a visible countdown,
+so two people cannot pick the same seat and only find out at the payment step. A held
+seat shows its own colour on the map and is turned away immediately for anyone else.
 
 ## Requirements
 
-- Java Development Kit (JDK) 17 or newer
-- A desktop environment with Java Swing support
-- The bundled H2 JDBC driver in `lib/` (included with the project)
+- JDK 17 or newer (developed and verified on OpenJDK 25)
+- A desktop environment with Swing
+- The bundled H2 driver in `lib/` — no database server to install
 
-## Run on Linux/macOS
+## Run it
 
 ```bash
 cd /home/shema/Desktop/PROJECTS/stadium-seat-booking
 ./run.sh
 ```
 
-The script compiles the project into `build/classes` and opens the GUI.
-
-## Run manually
-
-From the project directory:
+## Build and test
 
 ```bash
-mkdir -p build/classes
-javac -cp 'lib/*' -d build/classes $(find src/main/java -name '*.java' -print)
-java -cp 'build/classes:lib/*' com.stadium.booking.StadiumBookingApp
+./run-tests.sh
 ```
+
+**224 tests, no build tool, no network access** — just a JDK and the bundled driver.
+
+They cover the venue and event data, the four pricing ends and the row curve, exact
+seat selection through the real click path, the stadium map and its size limits, the
+booking button appearing and counting seats, the full booking flow from seat to
+receipt, receipt arithmetic, finding a booking, that every screen opens with no
+sign-in, persistence, seat holds, three languages, the occupancy report, keyboard
+seat selection, dark mode and WCAG contrast.
+
+Five of them exist because of defects found while building this:
+
+- The confirmation step used to **reassign seats** to spread a booking across the four
+  ends, so a customer could be quoted one price and given different seats. Exact seats
+  are now authoritative, and the tests fail if anything moves them again.
+- A seat that could not be booked said only "is not selectable", which told a customer
+  nothing about whether to pick again or wait. It now names the reason.
+- The seat limit shown on screen said six while the code enforced six by coincidence
+  of an edit; the wording is now checked against the constant, in all three languages.
+- The seat map sat in a `BorderLayout.CENTER` slot, which always stretches to fill and
+  ignores a maximum size, so it grew down the whole screen and pushed the price
+  outline off the bottom. It is now capped, shows about 30 rows at a time, and a test
+  fails if the cap is removed.
+- The confirm button was the event page's *south* component, so the seat map and the
+  notices panel pushed it off the bottom of the window. It was in the layout but not on
+  screen — the booking control existed and a customer could not see it. It now sits
+  along the top of the page, and a test fails if it moves back down.
 
 ## How to use it
 
-1. Search for a stadium or choose one from the directory cards.
-2. Review the stadium information, upcoming schedule, countdown and special notices.
-3. Use the date selector and event search bar to find a game or concert.
-4. Open the event to view its sport, teams or artist, date, start time, doors time and booking deadline.
-5. Choose section A, B, C or D and tap a vacant seat. The map shows the exact seat number and price.
-6. Review the price outline: each selected seat, row tier, subtotal, booking fee and total due.
-7. Press **Confirm booked seats** to complete the reservation.
-8. Review the booked seat numbers in the confirmation message.
-9. Open **My bookings** to search, review or cancel a reservation.
+1. The stadium screen opens on the upcoming schedule and the notices panel.
+2. Tap an event to open its details page, or use **What's on** for the whole list with
+   date, type and search filters.
+3. On the details page, choose seats. The map shows the four ends as tabs; tap a seat
+   to hold it, or use the arrow keys and Enter.
+4. Once you have picked a seat, a **Confirm N seats** button appears at the top of
+   the page with the total beside it. Before you pick anything it reads "Choose one
+   or more seats, then confirm here" instead, so there is no dead button to press.
+5. Press it. A short dialog asks for your name, email and phone the first time and
+   reuses them after that.
+6. **Pay** by cash at the venue or mobile money.
+7. The booking is taken and the receipt is issued straight away — save it or print it.
+8. **My bookings** lists every reservation with no sign-in; open one to see its
+   receipt again, or to cancel it.
 
-Bookings are stored in the embedded H2 database `stadium-bookings.mv.db` in the project working directory. Delete that file to reset the database. Older `stadium-bookings.dat` files are migrated automatically when found.
+The **Back** button in the header is the only one: it returns to wherever you came
+from, so an event opened from the full schedule goes back there rather than always
+to the stadium page.
+
+## Notes
+
+**Mobile money is simulated.** The payment step records an authorisation locally and
+labels it as such. No money moves and no provider credentials ship with this build. A
+real transfer needs a merchant account with a payment provider, wired in at
+`PaymentRecord`.
+
+**Customer details are stored in plain text, and anyone running the application can
+read them.** Opening the system to bookers means there is no account boundary and no
+PIN, so the booking file `stadium-bookings.dat` holds names, email addresses and
+phone numbers that this build does not encrypt — H2 2.2.224 does not encrypt page
+contents on write, so they are readable with a hex editor. The in-app screens show
+these details openly by design, because they are the customer's own bookings. Two
+consequences worth naming plainly:
+
+- Treat access to the machine as access to every customer's contact details. Put the
+  application somewhere only the box office can reach.
+- If it is ever exposed beyond that, real protection needs either a database that
+  encrypts its pages or the customer fields encrypted in the application itself.
+
+The database password feature that used to guard this file has been removed along with
+the staff accounts, so nothing prompts for a password at launch any more.
+
+**Receipts are recomputed from current pricing.** Each seat's price on a receipt is
+looked up from the same pricing curve the seat map charged, and the total is the
+booking's own recorded total. That is exact here because prices are fixed per event. A
+venue that repriced between sales would need the price stored on the booking line.
+
+**Language.** English, Luganda and Swahili, switchable from the header, with the whole
+interface — seat map, tables, dialogs, receipts — following the choice.
+
+**Theme.** Light and dark, switched from the header and remembered between runs. One
+palette drives everything, and the tests measure real WCAG contrast in both themes
+rather than eyeballing it.
