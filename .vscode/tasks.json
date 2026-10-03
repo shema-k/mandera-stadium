@@ -1,0 +1,38 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Run the app",
+      "type": "shell",
+      "command": "./run.sh",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "Run the tests",
+      "type": "shell",
+      "command": "./run-tests.sh",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "Compile only (check for errors)",
+      "type": "shell",
+      "command": "mkdir -p build/classes && find src/main/java -name '*.java' -print0 | xargs -0 javac -nowarn -cp 'lib/*' -d build/classes",
+      "problemMatcher": ["$javac"],
+      "presentation": {
+        "reveal": "silent"
+      }
+    }
+  ]
+}

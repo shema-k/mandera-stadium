@@ -153,22 +153,21 @@ final class OccupancyReportTest {
             }
         });
 
-        test("one busy night is not hidden by the quiet ones", () -> {
-            // The reason this report is per event. Filling a single night and
-            // leaving the rest empty must show that night as nearly full, rather
-            // than averaging to a fraction of a percent across the whole season.
+        test("a busy night is measured against its own seats, not the season's", () -> {
+            // The reason this report is per event. Sales on one night must be
+            // divided by the seats on sale for that night. The old behaviour
+            // divided the season's sales by the season's seats, so a well
+            // attended match read as near-empty.
             BookingService service = new BookingService(new BookingStore(freshDatabase("busy")));
             Stadium stadium = StadiumData.getStadium("namboole");
             StadiumEvent busy = StadiumData.getEvents("namboole").get(0);
-            int seatsToBook = stadium.getSeatCount() / 2;
+            int seatsToBook = 100;
             List<Seat> seats = new java.util.ArrayList<>();
             for (Seat seat : service.getSeats()) {
                 if (seats.size() >= seatsToBook) {
                     break;
                 }
-                if (service.isSeatSelectable(seat.getKey())) {
-                    seats.add(seat);
-                }
+                seats.add(seat);
             }
             // Split across reservations, since one reservation is capped at 20.
             for (int start = 0; start < seats.size(); start += 20) {
@@ -177,11 +176,20 @@ final class OccupancyReportTest {
                 service.book("Busy Night", "busy@example.co.ug", "+256700000000",
                         new java.util.ArrayList<>(slice));
             }
-            OccupancyReport.Row row = rowForEvent(OccupancyReport.compute(service), busy.getId());
+            OccupancyReport report = OccupancyReport.compute(service);
+            OccupancyReport.Row row = rowForEvent(report, busy.getId());
+
             assertEquals(seatsToBook, row.getSeatsBooked(), "the busy night has its seats");
-            assertTrue(row.getVacancyPercentage() < 50.5,
-                    "a half-full night reads as about half full, got "
-                            + row.getVacancyPercentage());
+            assertEquals(stadium.getSeatCount(), row.getSeatsOnSale(),
+                    "measured against one night on sale");
+            // 100 sold of 45,202 leaves 99.78% of that night free.
+            assertClose((stadium.getSeatCount() - seatsToBook) * 100.0 / stadium.getSeatCount(),
+                    row.getVacancyPercentage(), 0.01, "the night's own vacancy");
+            // The old per-season figure for the same sales was a small fraction of
+            // a percent, which is the bug this guards against.
+            assertTrue(report.getSeasonVacancyPercentage() > 99.0,
+                    "the season still reads nearly empty, as it should, got "
+                            + report.getSeasonVacancyPercentage());
         });
     }
 }

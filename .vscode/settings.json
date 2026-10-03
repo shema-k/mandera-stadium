@@ -1,0 +1,25 @@
+{
+  "java.configuration.runtimes": [
+    {
+      "name": "JavaSE-25",
+      "path": "/usr/lib/jvm/java-25-openjdk-amd64",
+      "default": true
+    }
+  ],
+  "java.import.gradle.enabled": false,
+  "java.import.maven.enabled": false,
+  "java.configuration.updateBuildConfiguration": "disabled",
+  "files.exclude": {
+    "**/build": true,
+    "**/backups": true
+  },
+  "search.exclude": {
+    "**/build": true,
+    "**/*.mv.db": true,
+    "**/backups": true
+  },
+  "files.watcherExclude": {
+    "**/build/**": true,
+    "**/backups/**": true
+  }
+}

@@ -145,7 +145,7 @@ public final class Receipt {
                     : 0.0;
 
             SeatSection section = stadium == null ? null : stadium.getSection(key.getSection());
-            String sectionLabel = section == null ? "Section " + key.getSection() : section.getLabel();
+            String sectionLabel = section == null ? Messages.get("receipt.sectionLine") + " " + key.getSection() : section.getLabel();
             String tier = service != null
                     ? service.getRowTierName(key.getRow(), section == null ? 1 : section.getRows())
                     : "";
@@ -256,7 +256,7 @@ public final class Receipt {
         out.append(String.format("  Status        : %s%n", booking.getStatus().name()));
         out.append('\n');
 
-        out.append("  EVENT").append('\n');
+        out.append("  " + Messages.get("receipt.eventHeading")).append('\n');
         out.append(String.format("    %s%n", booking.getEvent()));
         out.append(String.format("    %s%n", getEventWhen()));
         if (event != null && event.getType() != null) {
@@ -267,7 +267,7 @@ public final class Receipt {
         out.append(String.format("  SEATS BOOKED  (%d)%n", getSeatCount()));
         out.append(thin).append('\n');
         out.append(String.format("  %-10s  %-18s  %14s  %12s%n",
-                "SEAT", "SECTION", "PRICE TIER", "AMOUNT"));
+                Messages.get("receipt.colSeat"), Messages.get("receipt.colSection"), Messages.get("receipt.colTier"), Messages.get("receipt.colAmount")));
         for (Line line : lines) {
             out.append(String.format("  %-10s  %-18s  %-14s  %12s%n",
                     line.getSeatLabel(),
@@ -278,8 +278,8 @@ public final class Receipt {
         out.append(thin).append('\n');
 
         out.append('\n');
-        out.append("  CHARGES").append('\n');
-        out.append(String.format("    %-34s %16s%n", "Seats (" + getSeatCount() + ")",
+        out.append("  " + Messages.get("receipt.chargesHeading")).append('\n');
+        out.append(String.format("    %-34s %16s%n", Messages.get("receipt.seatsLine") + " (" + getSeatCount() + ")",
                 money(seatSubtotal)));
         // Per-end subtotals, each showing what one seat in that end cost, so the
         // figures can be checked against the seat lines above rather than taken
@@ -291,12 +291,12 @@ public final class Receipt {
                     total.getCount(), total.getSectionLabel(),
                     money(each), money(total.getTotal())));
         }
-        out.append(String.format("    %-34s %16s%n", "Ticketing fee", money(bookingFee)));
+        out.append(String.format("    %-34s %16s%n", Messages.get("receipt.feeLine"), money(bookingFee)));
         out.append(rule).append('\n');
-        out.append(String.format("  %-34s %16s%n", "TOTAL PAID", money(getTotal())));
+        out.append(String.format("  %-34s %16s%n", Messages.get("receipt.totalPaid"), money(getTotal())));
         out.append(rule).append('\n');
         out.append('\n');
-        out.append("  BILLED TO").append('\n');
+        out.append("  " + Messages.get("receipt.billedTo")).append('\n');
         out.append(String.format("    %s%n", booking.getCustomerName()));
         out.append(String.format("    %s%n", booking.getEmail()));
         out.append(String.format("    %s%n", booking.getPhone()));

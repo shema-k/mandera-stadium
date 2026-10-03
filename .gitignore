@@ -5,6 +5,9 @@ stadium-bookings.dat
 *.trace.db
 *.lock.db
 
+# Database backups made by ./open-db.sh backup (contain customer data - never commit).
+backups/
+
 # Venue photographs are supplied by whoever runs the application, and are third-party
 # images, so they are deliberately not committed. See photos/README.md.
 photos/*.jpg

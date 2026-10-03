@@ -203,24 +203,24 @@ final class SeatMapPanel extends JPanel {
         // layout stretches it down the screen however small the cells are.
         sectionTabs.setMaximumSize(new Dimension(Integer.MAX_VALUE,
                 MAX_CANVAS_HEIGHT + 40));
-        sectionTabs.getAccessibleContext().setAccessibleName("Seat sections");
+        sectionTabs.getAccessibleContext().setAccessibleName(Messages.get("seatMap.sections"));
         sectionTabs.getAccessibleContext().setAccessibleDescription(
                 "Four seating sections. Use the arrow keys to move between seats "
                         + "and Enter to hold one.");
         sectionTabs.setFocusTraversalKeysEnabled(false);
         installSeatKeyBindings(sectionTabs);
         sectionTabs.getInputMap(WHEN_ANCESTOR_OF_FOCUSED_COMPONENT)
-                .put(KeyStroke.getKeyStroke("UP"), "stadium.seat.up");
+                .put(KeyStroke.getKeyStroke(Messages.get("seatMap.keyUp")), "stadium.seat.up");
         sectionTabs.getInputMap(WHEN_ANCESTOR_OF_FOCUSED_COMPONENT)
-                .put(KeyStroke.getKeyStroke("DOWN"), "stadium.seat.down");
+                .put(KeyStroke.getKeyStroke(Messages.get("seatMap.keyDown")), "stadium.seat.down");
         sectionTabs.getInputMap(WHEN_ANCESTOR_OF_FOCUSED_COMPONENT)
-                .put(KeyStroke.getKeyStroke("LEFT"), "stadium.seat.left");
+                .put(KeyStroke.getKeyStroke(Messages.get("seatMap.keyLeft")), "stadium.seat.left");
         sectionTabs.getInputMap(WHEN_ANCESTOR_OF_FOCUSED_COMPONENT)
-                .put(KeyStroke.getKeyStroke("RIGHT"), "stadium.seat.right");
+                .put(KeyStroke.getKeyStroke(Messages.get("seatMap.keyRight")), "stadium.seat.right");
         sectionTabs.getInputMap(WHEN_ANCESTOR_OF_FOCUSED_COMPONENT)
-                .put(KeyStroke.getKeyStroke("ENTER"), "stadium.seat.hold");
+                .put(KeyStroke.getKeyStroke(Messages.get("seatMap.keyEnter")), "stadium.seat.hold");
         sectionTabs.getInputMap(WHEN_ANCESTOR_OF_FOCUSED_COMPONENT)
-                .put(KeyStroke.getKeyStroke("SPACE"), "stadium.seat.hold");
+                .put(KeyStroke.getKeyStroke(Messages.get("seatMap.keySpace")), "stadium.seat.hold");
         sectionTabs.getActionMap().put("stadium.seat.up",
                 new AbstractAction() {
                     @Override
@@ -512,13 +512,13 @@ final class SeatMapPanel extends JPanel {
         lastSeatValue.setText(key.display() + "  •  " + status + "  •  " + currency(seat.getPrice()));
         if (!bookingService.isSeatSelectable(key)) {
             if (messageListener != null) {
-                messageListener.accept("Seat " + key.display() + " is " + status.toLowerCase(Locale.ENGLISH));
+                messageListener.accept(Messages.get("seatMap.seat") + " " + key.display() + " " + Messages.get("seatMap.is") + " " + status.toLowerCase(Locale.ENGLISH));
             }
             return;
         }
         if (holdService.isHeldByAnother(key, bookingService.getActiveEvent(), holdOwner)) {
             if (messageListener != null) {
-                messageListener.accept("Seat " + key.display()
+                messageListener.accept(Messages.get("seatMap.seat") + " " + key.display()
                         + " is being held by another customer for a few more minutes");
             }
             return;
@@ -569,19 +569,19 @@ final class SeatMapPanel extends JPanel {
 
     private String statusLabel(SeatKey key) {
         if (!bookingService.isBookingOpen(bookingService.getActiveEvent())) {
-            return "Booking closed";
+            return Messages.get("seatMap.bookingClosed");
         }
         SeatStatus status = bookingService.getStatus(key);
         if (status == SeatStatus.BOOKED) {
-            return "Booked";
+            return Messages.get("seatMap.booked");
         }
         if (status == SeatStatus.BLOCKED) {
-            return "Unavailable";
+            return Messages.get("seatMap.unavailable");
         }
         if (selectedSeats.contains(key)) {
-            return "Selected";
+            return Messages.get("seatMap.selected");
         }
-        return heldSeats.contains(key) ? "Held" : "Vacant";
+        return heldSeats.contains(key) ? Messages.get("seatMap.held") : Messages.get("seatMap.vacant");
     }
 
     /** Who owns the holds placed through this panel, normally one browsing session. */
@@ -759,7 +759,7 @@ final class SeatMapPanel extends JPanel {
     private String priceGuide() {
         Stadium stadium = bookingService.getActiveStadium();
         if (stadium == null || stadium.getSections().isEmpty()) {
-            return "Prices fall from front to back";
+            return Messages.get("seatMap.pricesFall");
         }
         double front = Double.MAX_VALUE;
         double back = Double.MAX_VALUE;
@@ -800,7 +800,7 @@ final class SeatMapPanel extends JPanel {
             setFocusTraversalKeysEnabled(false);
             getAccessibleContext().setAccessibleName("Seat map, section " + section.getId());
             getAccessibleContext().setAccessibleDescription(
-                    "Arrow keys move between seats, Enter or Space holds the seat.");
+                    Messages.get("seatMap.nameHint"));
             installSeatKeyBindings(this);
             addFocusListener(new FocusAdapter() {
                 @Override
@@ -905,11 +905,11 @@ final class SeatMapPanel extends JPanel {
             g.setFont(getFont().deriveFont(Font.BOLD, 9f));
             g.drawString(section.getId() + "  " + section.getLabel(), 12, 14);
             g.setFont(getFont().deriveFont(Font.PLAIN, 7f));
-            g.drawString("FRONT • PREMIUM", 12, 25);
-            String middleTier = "MIDDLE • STANDARD";
+            g.drawString(Messages.get("seatMap.frontPremium"), 12, 25);
+            String middleTier = Messages.get("seatMap.middleStandard");
             int middleWidth = g.getFontMetrics().stringWidth(middleTier);
             g.drawString(middleTier, Math.max(120, (width - middleWidth) / 2), 25);
-            g.drawString("BACK • VALUE", Math.max(110, width - 110), 25);
+            g.drawString(Messages.get("seatMap.backValue"), Math.max(110, width - 110), 25);
 
             boolean closed = !bookingService.isBookingOpen(bookingService.getActiveEvent());
             for (int row = 1; row <= section.getRows(); row++) {
@@ -948,7 +948,7 @@ final class SeatMapPanel extends JPanel {
             g.draw(new RoundRectangle2D.Double(pitchX, 4, pitchWidth, 16, 8, 8));
             g.setColor(new Color(31, 96, 57));
             g.setFont(getFont().deriveFont(Font.BOLD, 7f));
-            String pitchText = shape == StadiumShape.CIRCULAR ? "CIRCULAR" : "PITCH / STAGE";
+            String pitchText = shape == StadiumShape.CIRCULAR ? Messages.get("seatMap.circular") : Messages.get("seatMap.pitchStage");
             int textWidth = g.getFontMetrics().stringWidth(pitchText);
             g.drawString(pitchText, pitchX + (pitchWidth - textWidth) / 2, 15);
         }

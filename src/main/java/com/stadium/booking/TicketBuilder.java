@@ -115,8 +115,8 @@ public final class TicketBuilder {
 
     public static String csvHeader() {
         return String.join(",",
-                "Reference", "Event", "VenueId", "Seats", "SeatCount", "Total",
-                "Customer", "Email", "Phone", "Status", "BookedOn");
+                Messages.get("bookings.table.reference"), Messages.get("ticket.csvEvent"), "VenueId", "Seats", "SeatCount", "Total",
+                Messages.get("ticket.csvCustomer"), Messages.get("bookings.field.email"), Messages.get("bookings.field.phone"), Messages.get("bookings.table.status"), Messages.get("ticket.csvBookedOn"));
     }
 
     /** A CSV export of every booking, newest first. */

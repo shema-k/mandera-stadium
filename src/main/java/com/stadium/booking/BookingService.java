@@ -28,9 +28,9 @@ public class BookingService {
      * a club party to book together, low enough that the price outline and the
      * receipt stay readable in one screen.
      */
-    public static final int MAX_SEATS_PER_BOOKING = 20;
+    public static final int MAX_SEATS_PER_BOOKING = 50;
     /** Ticketing fee charged once per reservation, in Ugandan shillings. */
-    public static final double BOOKING_FEE = 15000.0;
+    public static final double BOOKING_FEE = 5000.0;
 
     private final Map<SeatKey, Seat> seatInventory = new LinkedHashMap<>();
     private final List<Booking> bookings = new ArrayList<>();
@@ -256,10 +256,11 @@ public class BookingService {
         }
         String normalizedCategory = category == null || category.trim().isEmpty()
                 ? "General request" : category.trim();
-        String normalizedMessage = message == null ? "" : message.trim();
-        if (normalizedMessage.length() < 5) {
-            throw new IllegalArgumentException("Please describe the request in a little more detail");
+        String requestProblem = FormRules.requestProblem(message);
+        if (requestProblem != null) {
+            throw new IllegalArgumentException(requestProblem);
         }
+        String normalizedMessage = message.trim();
         LocalDateTime now = LocalDateTime.now();
         StadiumAnnouncement request = new StadiumAnnouncement(
                 "request-" + System.currentTimeMillis(), stadiumId, "", AnnouncementType.SPECIAL_REQUEST,
@@ -610,14 +611,19 @@ public void validateCustomer(String customerName, String email, String phone) {
         String name = customerName == null ? "" : customerName.trim();
         String address = email == null ? "" : email.trim();
         String number = phone == null ? "" : phone.trim();
+        // Reports the first problem, and only ever as a last resort: the form
+        // checks every field up front with CustomerDetails, so a customer is not
+        // sent here one problem at a time. This stays as the guarantee that no
+        // booking is ever taken with details the form would have refused.
         if (name.length() < 2) {
             throw new IllegalArgumentException("Please enter your name");
         }
-        if (!address.matches("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$")) {
-            throw new IllegalArgumentException("Please enter a valid email address");
-        }
-        if (!number.matches("^[0-9+() .-]{7,20}$")) {
-            throw new IllegalArgumentException("Please enter a valid phone number");
+        java.util.Map<CustomerDetails.Field, CustomerDetails.Problem> problems =
+                CustomerDetails.check(name, address, number);
+        if (!problems.isEmpty()) {
+            CustomerDetails.Problem first =
+                    CustomerDetails.problemsInOrder(problems).get(0);
+            throw new IllegalArgumentException(first.getMessage());
         }
     }
 
@@ -715,10 +721,16 @@ public void validateCustomer(String customerName, String email, String phone) {
         if (seats == null || seats.isEmpty()) {
             throw new IllegalArgumentException("Choose at least one seat to save");
         }
-        String clean = label == null || label.isBlank() ? "My seats" : label.trim();
-        if (clean.length() > 120) {
-            clean = clean.substring(0, 120);
+        // An over-long label is refused rather than shortened. It used to be cut
+        // to 120 characters here without saying so, so a customer could type a
+        // name, watch it save, and find part of it had gone. The form checks
+        // this first and asks for a shorter one, so this is the guarantee that
+        // nothing over the limit is ever stored.
+        String labelProblem = FormRules.labelProblem(label);
+        if (labelProblem != null) {
+            throw new IllegalArgumentException(labelProblem);
         }
+        String clean = FormRules.trimLabel(label);
         List<SeatKey> keys = new ArrayList<>();
         for (Seat seat : seats) {
             keys.add(seat.getKey());

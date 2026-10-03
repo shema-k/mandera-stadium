@@ -101,6 +101,7 @@ public final class TestRunner {
         SearchAndFilterTest.register();
         BookingToolsTest.register();
         LocaleTest.register();
+        TranslationCoverageTest.register();
         OccupancyReportTest.register();
         KeyboardSeatSelectionTest.register();
                 StadiumDetailsTest.register();
@@ -108,6 +109,10 @@ public final class TestRunner {
         DetailsFlowTest.register();
         ReceiptTest.register();
         ConfirmBookingTest.register();
+        CustomerDetailsTest.register();
+        DetailsFormTest.register();
+        FormRulesTest.register();
+        PrefilledDetailsTest.register();
         ThemeTest.register();
         SavedSelectionTest.register();
         System.exit(summary());

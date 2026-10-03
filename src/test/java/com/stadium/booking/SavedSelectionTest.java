@@ -128,12 +128,56 @@ final class SavedSelectionTest {
                     "and so does no label at all");
         });
 
-        test("a long label is trimmed rather than refused", () -> {
+        test("a label over the limit is refused, not quietly shortened", () -> {
+            // This used to be trimmed to 120 characters without saying so. A
+            // customer could type a name, watch the save succeed, and only find
+            // out later that the start of it had gone. The form asks for a
+            // shorter one instead, and this makes sure nothing over the limit is
+            // ever stored.
             BookingService service = service();
             service.selectEvent(StadiumData.getEvent("namboole-01"));
-            String long_ = "x".repeat(400);
-            BookingStore.SavedSelection saved = service.saveSelection(long_, pick(service, 1));
-            assertEquals(120, saved.getLabel().length(), "trimmed to fit");
+            String tooLong = "x".repeat(400);
+            boolean refused = false;
+            String message = "";
+            try {
+                service.saveSelection(tooLong, pick(service, 1));
+            } catch (IllegalArgumentException problem) {
+                refused = true;
+                message = problem.getMessage();
+            }
+            assertTrue(refused, "an over-long label is refused");
+            assertTrue(message.contains("400"),
+                    "the message says how long it was, so the customer can see "
+                            + "by how much to cut: " + message);
+            assertTrue(message.contains(String.valueOf(FormRules.MAX_LABEL_LENGTH)),
+                    "and how short it needs to be: " + message);
+        });
+
+        test("a label exactly on the limit is accepted", () -> {
+            // The boundary, so tightening the rule does not quietly start
+            // refusing labels that used to be fine.
+            BookingService service = service();
+            service.selectEvent(StadiumData.getEvent("namboole-01"));
+            String onLimit = "x".repeat(FormRules.MAX_LABEL_LENGTH);
+            BookingStore.SavedSelection saved = service.saveSelection(onLimit, pick(service, 1));
+            assertEquals(FormRules.MAX_LABEL_LENGTH, saved.getLabel().length(),
+                    "nothing is cut off a label that fits");
+            assertEquals(onLimit, saved.getLabel(), "and it is the label as typed");
+        });
+
+        test("one character over the limit is refused", () -> {
+            // The same boundary from the other side, which is where an
+            // off-by-one would show up.
+            BookingService service = service();
+            service.selectEvent(StadiumData.getEvent("namboole-01"));
+            String justOver = "x".repeat(FormRules.MAX_LABEL_LENGTH + 1);
+            boolean refused = false;
+            try {
+                service.saveSelection(justOver, pick(service, 1));
+            } catch (IllegalArgumentException expected) {
+                refused = true;
+            }
+            assertTrue(refused, "a label one character too long is refused");
         });
 
         test("a fresh selection can still be booked", () -> {

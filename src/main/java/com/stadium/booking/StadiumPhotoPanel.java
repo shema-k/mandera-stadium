@@ -121,9 +121,9 @@ public final class StadiumPhotoPanel extends JPanel {
         }
         BufferedImage photograph = load(stadium);
         if (photograph != null) {
-            return "Photograph  •  " + expectedPhotoFile(stadium).getName();
+            return Messages.get("photo.photograph") + "  •  " + expectedPhotoFile(stadium).getName();
         }
-        return "Aerial seating plan  •  add photos/" + stadium.getId() + ".jpg for a photograph";
+        return Messages.get("photo.aerialPlan") + "  •  add photos/" + stadium.getId() + ".jpg for a photograph";
     }
 
     @Override

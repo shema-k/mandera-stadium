@@ -1,0 +1,24 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "java",
+      "name": "Run the app",
+      "request": "launch",
+      "mainClass": "com.stadium.booking.StadiumBookingApp",
+      "cwd": "${workspaceFolder}",
+      "console": "internalConsole",
+      "stopOnEntry": false,
+      "vmArgs": "-cp \"${workspaceFolder}/build/classes:${workspaceFolder}/lib/*\""
+    },
+    {
+      "type": "java",
+      "name": "Run the tests",
+      "request": "launch",
+      "mainClass": "com.stadium.booking.TestRunner",
+      "cwd": "${workspaceFolder}",
+      "console": "internalConsole",
+      "vmArgs": "-cp \"${workspaceFolder}/build/test-classes:${workspaceFolder}/lib/*\""
+    }
+  ]
+}

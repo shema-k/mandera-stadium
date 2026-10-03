@@ -138,11 +138,11 @@ public final class StadiumBookingApp extends JFrame {
     private final JLabel headerSubtitle = new JLabel();
     private final JLabel statusValue = new JLabel(Messages.get("status.chooseStadium"));
     private final SearchField eventSearchField =
-            new SearchField("Search teams, artists, sport or date");
+            new SearchField(Messages.get("stadium.search.hint"));
     private final SearchField bookingSearchField =
-            new SearchField("Search reference, stadium, event or status");
+            new SearchField(Messages.get("search.seatsHint"));
     private final SearchField liveSearchField =
-            new SearchField("Search teams, artists, venues or dates");
+            new SearchField(Messages.get("search.stadiumHint"));
     private final JTextField nameField = new JTextField();
     private final JTextField emailField = new JTextField();
     private final JTextField phoneField = new JTextField();
@@ -227,7 +227,7 @@ public final class StadiumBookingApp extends JFrame {
     });
 
     public StadiumBookingApp() {
-        super("Namboole Seat Booking");
+        super(text("app.title"));
         // Colours have to be in place before the first screen is painted.
         ThemePreference.restore();
         applyThemeColours();
@@ -240,7 +240,7 @@ public final class StadiumBookingApp extends JFrame {
                 this::updateBookingSummary, this::showStatus);
         seatMapPanel.setHoldOwner(sessionOwner);
         bookingTableModel = new DefaultTableModel(
-                new Object[]{"Reference", "Stadium", "Event", "When", "Seats", "Total", "Status"}, 0) {
+                new Object[]{Messages.get("bookings.table.reference"), "Stadium", "Event", "When", "Seats", "Total", Messages.get("bookings.table.status")}, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
                 return false;
@@ -412,7 +412,8 @@ public final class StadiumBookingApp extends JFrame {
         languageCombo.setFont(languageCombo.getFont().deriveFont(Font.BOLD, 10f));
         languageCombo.setFocusable(false);
         languageCombo.setPreferredSize(new Dimension(110, 28));
-        languageCombo.setToolTipText("Change the interface language");
+        languageCombo.setToolTipText(text("app.languageHint"));
+        describe(languageCombo, text("app.languageName"), text("app.languageDescription"));
         languageCombo.addActionListener(event -> {
             Messages.setLanguage((Messages.Language) languageCombo.getSelectedItem());
             applyLanguage();
@@ -424,8 +425,8 @@ public final class StadiumBookingApp extends JFrame {
         styleHeaderButton(darkModeButton);
         darkModeButton.setPreferredSize(new Dimension(96, 30));
         darkModeButton.addActionListener(event -> toggleDarkMode());
-        describe(darkModeButton, "Dark mode",
-                "Switch the whole application between a light and a dark theme");
+        describe(darkModeButton, Messages.get("theme.darkName"),
+                Messages.get("nav.venues.desc"));
         navigation.add(darkModeButton);
         styleHeaderButton(backNavButton);
         styleHeaderButton(stadiumNavButton);
@@ -439,16 +440,16 @@ public final class StadiumBookingApp extends JFrame {
         seatLedgerNavButton.addActionListener(event -> showSeatLedger());
         occupancyNavButton.addActionListener(event -> showOccupancyReport());
         savedNavButton.addActionListener(event -> showSavedSeats());
-        describe(backNavButton, "Back", "Return to the previous screen");
-        describe(stadiumNavButton, "Stadium", "The stadium, its schedule and its notices");
-        describe(bookingsNavButton, "My bookings",
-                "Find a booking by the email or phone number on it");
-        describe(seatLedgerNavButton, "Booked seats",
-                "See which seats are already taken for each event");
-        describe(occupancyNavButton, "Occupancy",
-                "See how full the stadium is, and how full each end is");
-        describe(savedNavButton, "Saved seats",
-                "Seats you chose earlier and can come back to book later");
+        describe(backNavButton, Messages.get("nav.back"), Messages.get("nav.back.desc"));
+        describe(stadiumNavButton, Messages.get("nav.venues"), Messages.get("nav.venues.desc"));
+        describe(bookingsNavButton, Messages.get("nav.bookings"),
+                Messages.get("nav.bookings.desc"));
+        describe(seatLedgerNavButton, Messages.get("bookings.field.bookedSeats"),
+                Messages.get("nav.bookedSeats.desc"));
+        describe(occupancyNavButton, Messages.get("nav.occupancy"),
+                Messages.get("nav.occupancy.desc"));
+        describe(savedNavButton, Messages.get("nav.savedTitle"),
+                Messages.get("nav.saved.desc"));
         navigation.add(backNavButton);
         navigation.add(stadiumNavButton);
         navigation.add(bookingsNavButton);
@@ -494,7 +495,7 @@ public final class StadiumBookingApp extends JFrame {
         status.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createMatteBorder(1, 0, 0, 0, BORDER),
                 new EmptyBorder(7, 24, 7, 24)));
-        JLabel label = new JLabel("STATUS");
+        JLabel label = new JLabel(text("booking.statusHeader"));
         statusHeading = label;
         label.setForeground(MUTED);
         label.setFont(label.getFont().deriveFont(Font.BOLD, 10f));
@@ -515,21 +516,83 @@ public final class StadiumBookingApp extends JFrame {
         return Messages.get(key, arguments);
     }
 
-    /** Re-applies the current language to the header, then redraws the screen. */
+    /**
+     * Re-applies the current language to the header, then redraws whatever screen
+     * is showing.
+     *
+     * <p>Every screen is redrawn, not just the booking one. It used to redraw
+     * only that, so picking another language left the schedule, the bookings
+     * list, the occupancy report and the saved seats reading in the old language
+     * while the header and the buttons changed. Whichever screen the customer is
+     * on is the one they are looking at, so that is the one that has to follow.
+     */
     private void applyLanguage() {
         if (brandLabel != null) {
             brandLabel.setText(text("app.tagline"));
         }
-        occupancyNavButton.setText(text("nav.occupancy"));
-        savedNavButton.setText(text("nav.saved"));
-        updateDarkModeButton();
-        seatMapPanel.retranslate();
         backNavButton.setText(text("nav.back"));
         stadiumNavButton.setText(text("nav.venues"));
         bookingsNavButton.setText(text("nav.bookings"));
         seatLedgerNavButton.setText(text("nav.bookedSeats"));
-        if ("booking".equals(currentScreen) && selectedStadium != null) {
-            refreshBookingScreen();
+        occupancyNavButton.setText(text("nav.occupancy"));
+        savedNavButton.setText(text("nav.saved"));
+        languageCombo.setToolTipText(text("app.languageHint"));
+        describe(languageCombo, text("app.languageName"), text("app.languageDescription"));
+        updateDarkModeButton();
+        seatMapPanel.retranslate();
+        setTitle(text("app.title"));
+        redrawCurrentScreen();
+    }
+
+    /**
+     * Rebuilds the screen that is showing, in the language now selected.
+     *
+     * <p>Each screen is rebuilt by calling the same method that opened it, so
+     * there is one way to build a screen rather than a second one kept in step by
+     * hand. Anything a screen cannot rebuild without losing the customer's place
+     * — the seat map mid-selection, for instance — is left as it is, because
+     * changing language must never discard the seats someone has chosen.
+     */
+    private void redrawCurrentScreen() {
+        switch (currentScreen == null ? "" : currentScreen) {
+            case "stadium":
+                showStadiumDirectory();
+                break;
+            case "stadium-details":
+                if (selectedStadium != null) {
+                    showStadiumDetails(selectedStadium);
+                }
+                break;
+            case "schedules":
+                showLiveSchedules();
+                break;
+            case "event-details":
+            case "booking":
+                if (selectedEvent != null) {
+                    showEventDetails(selectedEvent);
+                }
+                break;
+            case "bookings":
+                showBookings();
+                break;
+            case "seats":
+                showSeatLedger();
+                break;
+            case "occupancy":
+                showOccupancyReport();
+                break;
+            case "saved-seats":
+                showSavedSeats();
+                break;
+            default:
+                // The booking screen shares the seat map with the event screen and
+                // holds the chosen seats, so it is redrawn in place rather than
+                // rebuilt. Losing a selection because someone switched language
+                // would be far worse than a few labels reading in the old one.
+                if (selectedEvent != null && selectedStadium != null) {
+                    refreshBookingScreen();
+                }
+                break;
         }
     }
 
@@ -567,7 +630,17 @@ public final class StadiumBookingApp extends JFrame {
         return text.length() <= 52 ? text : text.substring(0, 50).trim() + "\u2026";
     }
 
-    private static final String BACK_LABEL = "← Back";
+    /**
+     * The label on a dialog's way out.
+     *
+     * <p>A method rather than a constant, because a constant would freeze the
+     * wording at the language that was selected when the class loaded. A dialog
+     * opened after the customer switched language would then offer a button in
+     * the old one.
+     */
+    private static String backLabel() {
+        return Messages.get("nav.backArrow");
+    }
 
     /**
      * Shows a modal dialog with custom buttons and returns the label of the button the
@@ -652,7 +725,7 @@ public final class StadiumBookingApp extends JFrame {
         steps.setLayout(new BorderLayout(20, 0));
         steps.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(BORDER), new EmptyBorder(14, 18, 14, 18)));
-        JLabel heading = new JLabel("HOW IT WORKS");
+        JLabel heading = new JLabel(text("directory.howItWorks"));
         heading.setForeground(MUTED);
         heading.setFont(heading.getFont().deriveFont(Font.BOLD, 10f));
         steps.add(heading, BorderLayout.WEST);
@@ -660,16 +733,23 @@ public final class StadiumBookingApp extends JFrame {
         row.setOpaque(false);
         // There is no venue to choose: the stadium is fixed, so the first step is
         // finding what is on rather than picking where to go.
-        row.add(createStep("1", "Pick an event"));
-        row.add(createStep("2", "Open it and book"));
-        row.add(createStep("3", "Choose your seats"));
-        row.add(createStep("4", "Pay and keep your receipt"));
+        row.add(createStep("1", text("home.step1"), text("home.step1Desc")));
+        row.add(createStep("2", text("home.step2"), text("home.step2Desc")));
+        row.add(createStep("3", text("home.step3"), text("home.step3Desc")));
+        row.add(createStep("4", text("home.step4"), text("home.step4Desc")));
         steps.add(row, BorderLayout.CENTER);
         return steps;
     }
 
-    private JPanel createStep(String number, String text) {
-        JPanel step = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+    /**
+     * One numbered step in the "how it works" strip.
+     *
+     * @param title    the step itself, read at a glance
+     * @param detail   the sentence under it, so the step says what to do rather
+     *                 than only naming the thing being done
+     */
+    private JPanel createStep(String number, String title, String detail) {
+        JPanel step = new JPanel(new BorderLayout(8, 0));
         step.setOpaque(false);
         JLabel circle = new JLabel(number, SwingConstants.CENTER);
         circle.setOpaque(true);
@@ -677,11 +757,25 @@ public final class StadiumBookingApp extends JFrame {
         circle.setForeground(BLUE_DARK);
         circle.setFont(circle.getFont().deriveFont(Font.BOLD, 11f));
         circle.setPreferredSize(new Dimension(25, 25));
-        JLabel label = new JLabel(text);
-        label.setForeground(TEXT);
-        label.setFont(label.getFont().deriveFont(Font.PLAIN, 11f));
-        step.add(circle);
-        step.add(label);
+        circle.setVerticalAlignment(SwingConstants.TOP);
+
+        JPanel copy = new JPanel();
+        copy.setOpaque(false);
+        copy.setLayout(new BoxLayout(copy, BoxLayout.Y_AXIS));
+        JLabel titleLabel = new JLabel(title);
+        titleLabel.setForeground(TEXT);
+        titleLabel.setFont(titleLabel.getFont().deriveFont(Font.BOLD, 11f));
+        titleLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        copy.add(titleLabel);
+        if (detail != null && !detail.isEmpty()) {
+            JLabel detailLabel = new JLabel(detail);
+            detailLabel.setForeground(MUTED);
+            detailLabel.setFont(detailLabel.getFont().deriveFont(Font.PLAIN, 10f));
+            detailLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+            copy.add(detailLabel);
+        }
+        step.add(circle, BorderLayout.WEST);
+        step.add(copy, BorderLayout.CENTER);
         return step;
     }
 
@@ -716,7 +810,7 @@ public final class StadiumBookingApp extends JFrame {
 
         JPanel top = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
         top.setOpaque(false);
-        JButton back = createOutlineButton("\u2190 All stadiums", BLUE);
+        JButton back = createOutlineButton(text("common.allStadiums"), BLUE);
         back.addActionListener(event -> showStadiumDirectory());
         top.add(back);
         page.add(top, BorderLayout.NORTH);
@@ -768,17 +862,22 @@ public final class StadiumBookingApp extends JFrame {
         text.setLayout(new BoxLayout(text, BoxLayout.Y_AXIS));
         StadiumEvent next = details.getNextEvent();
         if (next != null) {
-            text.add(sideText("<b>Next up</b>  " + next.getHeadline(), "#1e293b", 12f));
+            text.add(sideText("<b>" + text("home.nextUp") + "</b>  " + next.getHeadline(),
+                    "#1e293b", 12f));
             text.add(sideText(Messages.dateLabel(next.getDate()) + "  •  "
-                    + next.getTimeLabel() + "  •  Doors " + next.getDoorsLabel(),
-                    "#64748b", 10f));
+                    + next.getTimeLabel() + "  •  " + text("event.doors") + " "
+                    + next.getDoorsLabel(), "#64748b", 10f));
         } else {
-            text.add(sideText("No events are scheduled here yet.", "#64748b", 11f));
+            text.add(sideText(text("home.noEvents"), "#64748b", 11f));
         }
         text.add(Box.createVerticalStrut(8));
-        text.add(sideText("Booking closes " + (next == null ? "\u2014"
-                : next.getBookingDeadlineLabel()) + ". Six seats per reservation, and no "
-                + "limit on how many reservations one person may hold.", "#64748b", 10f));
+        // The limit is read from the constant rather than written out. It said
+        // "Six seats" here while the code enforced a different number, so the
+        // page quietly contradicted itself.
+        text.add(sideText(text("home.bookingCloses") + " " + (next == null ? "\u2014"
+                : next.getBookingDeadlineLabel()) + ". " + text("home.seatLimit",
+                BookingService.MAX_SEATS_PER_BOOKING) + ", " + text("home.noBookingLimit"),
+                "#64748b", 10f));
         return text;
     }
 
@@ -788,14 +887,22 @@ public final class StadiumBookingApp extends JFrame {
         // beside these left the full page width for them.
         JPanel facts = new JPanel(new GridLayout(1, 4, 18, 0));
         facts.setOpaque(false);
-        facts.add(factTile("Capacity", StadiumPhotoPanel.compact(stadium.getCapacity()),
-                "published figure"));
-        facts.add(factTile("Shape", stadium.getShapeLabel().replace(" stadium", ""),
-                stadium.getShape() == StadiumShape.BOX ? "four straight stands" : "continuous bowl"));
-        facts.add(factTile("Seat price", details.getPriceSpan(), "plus "
-                + BookingService.formatMoney(details.getBookingFee()) + " fee"));
-        facts.add(factTile("On sale now", details.getEventCount() + " events",
-                String.format(Locale.US, "%.2f%% vacant", details.getVacancyPercentage())));
+        facts.add(factTile(text("home.capacity"),
+                StadiumPhotoPanel.compact(stadium.getCapacity()),
+                text("home.capacityHint")));
+        // The shape label ends in " stadium", which is English left over from the
+        // data, so it is trimmed here rather than shown twice.
+        facts.add(factTile(text("home.shape"),
+                stadium.getShapeLabel().replace(" stadium", ""),
+                stadium.getShape() == StadiumShape.BOX
+                        ? text("home.shapeStraight") : text("home.shapeOval")));
+        facts.add(factTile(text("home.seatPrice"), details.getPriceSpan(), text("home.seatPriceHint")
+                + " " + BookingService.formatMoney(details.getBookingFee()) + " "
+                + text("home.feeHint")));
+        facts.add(factTile(text("home.onSaleNow"),
+                        Messages.count("home.eventCount", details.getEventCount()),
+                String.format(Locale.US, "%.2f%%", details.getVacancyPercentage())
+                        + " " + text("home.vacantWord")));
         return facts;
     }
 
@@ -830,7 +937,7 @@ public final class StadiumBookingApp extends JFrame {
         card.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(BORDER), new EmptyBorder(12, 14, 12, 14)));
 
-        JLabel title = new JLabel("About this venue");
+        JLabel title = new JLabel(text("stadium.about"));
         title.setForeground(TEXT);
         title.setFont(title.getFont().deriveFont(Font.BOLD, 14f));
         card.add(title, BorderLayout.NORTH);
@@ -840,12 +947,12 @@ public final class StadiumBookingApp extends JFrame {
         // not a row of panels fighting over a fixed height.
         StringBuilder html = new StringBuilder();
         html.append("<html><body style='font-family:SansSerif; margin:0;'>");
-        detailRow(html, "Where", stadium.getAddress());
-        detailRow(html, "City", stadium.getCity() + ", " + stadium.getCountry());
-        detailRow(html, "Type", stadium.getVenueType());
-        detailRow(html, "Footprint", stadium.getShapeLabel());
-        detailRow(html, "Seats on sale", String.valueOf(stadium.getSeatCount()));
-        detailRow(html, "Sections", stadium.getSections().size() + " independent");
+        detailRow(html, Messages.get("facts.where"), stadium.getAddress());
+        detailRow(html, Messages.get("facts.city"), stadium.getCity() + ", " + stadium.getCountry());
+        detailRow(html, Messages.get("facts.type"), stadium.getVenueType());
+        detailRow(html, Messages.get("facts.footprint"), stadium.getShapeLabel());
+        detailRow(html, Messages.get("facts.seatsOnSale"), String.valueOf(stadium.getSeatCount()));
+        detailRow(html, Messages.get("facts.sections"), stadium.getSections().size() + " independent");
         html.append("<p style='margin-top:10px; color:#1e293b; font-size:11px;'>")
                 .append(stadium.getDescription()).append("</p>");
         html.append("</body></html>");
@@ -911,7 +1018,7 @@ public final class StadiumBookingApp extends JFrame {
         card.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(BORDER), new EmptyBorder(12, 14, 12, 14)));
 
-        JLabel title = new JLabel("At this venue");
+        JLabel title = new JLabel(text("stadium.atThisVenue"));
         title.setForeground(TEXT);
         title.setFont(title.getFont().deriveFont(Font.BOLD, 14f));
         card.add(title, BorderLayout.NORTH);
@@ -919,7 +1026,7 @@ public final class StadiumBookingApp extends JFrame {
         StringBuilder html = new StringBuilder();
         html.append("<html><body style='font-family:SansSerif; margin:0;'>");
 
-        htmlHeading(html, "What is on here", details.getEventCount() + " upcoming");
+        htmlHeading(html, Messages.get("stadium.whatIsOn"), details.getEventCount() + " upcoming");
         html.append("<div style='color:#64748b; font-size:9px; margin:-2px 0 4px 0;'>")
                 .append(details.getGameCount()).append(" games, ")
                 .append(details.getConcertCount()).append(" concerts</div>");
@@ -949,7 +1056,7 @@ public final class StadiumBookingApp extends JFrame {
                     .append(joinNames(details.getArtists())).append("</p>");
         }
 
-        htmlHeading(html, "Availability",
+        htmlHeading(html, Messages.get("stadium.availability"),
                 String.format(Locale.US, "%.2f%% vacant", details.getVacancyPercentage()));
         html.append("<div style='color:#475569; font-size:10px;'>")
                 .append(String.format(Locale.US, "%s of %s seats sold across the %d events.",
@@ -967,7 +1074,7 @@ public final class StadiumBookingApp extends JFrame {
         }
 
         if (details.hasNotices()) {
-            htmlHeading(html, "Notices", details.getNotices().size() + " posted");
+            htmlHeading(html, Messages.get("stadium.notices"), details.getNotices().size() + " posted");
             for (StadiumAnnouncement notice : details.getNotices()) {
                 html.append("<div style='color:#475569; font-size:10px; margin-bottom:6px;'>")
                         .append("<b>").append(notice.getTitle()).append("</b><br>")
@@ -978,7 +1085,7 @@ public final class StadiumBookingApp extends JFrame {
 
         card.add(htmlScroll(html.toString(), 11f), BorderLayout.CENTER);
 
-        JButton request = createSecondaryButton("Submit a special request");
+        JButton request = createSecondaryButton(text("stadium.specialRequest"));
         request.addActionListener(event -> showSpecialRequestDialog(stadium));
         JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
         actions.setOpaque(false);
@@ -1006,10 +1113,10 @@ public final class StadiumBookingApp extends JFrame {
         card.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(BORDER), new EmptyBorder(12, 14, 12, 14)));
 
-        JLabel title = new JLabel("Seating sections");
+        JLabel title = new JLabel(text("stadium.sections"));
         title.setForeground(TEXT);
         title.setFont(title.getFont().deriveFont(Font.BOLD, 14f));
-        JLabel note = new JLabel("Front rows are the dearest in every section.");
+        JLabel note = new JLabel(text("stadium.sectionsNote"));
         note.setForeground(MUTED);
         note.setFont(note.getFont().deriveFont(Font.PLAIN, 10f));
         JPanel heading = new JPanel(new BorderLayout());
@@ -1019,7 +1126,7 @@ public final class StadiumBookingApp extends JFrame {
         card.add(heading, BorderLayout.NORTH);
 
         DefaultTableModel model = new DefaultTableModel(
-                new Object[]{"", "Section", "Rows", "Seats per row", "Seats", "Price per seat"},
+                new Object[]{"", Messages.get("ledger.section"), Messages.get("ledger.rows"), Messages.get("ledger.seatsPerRow"), "Seats", Messages.get("ledger.pricePerSeat")},
                 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
@@ -1119,13 +1226,13 @@ public final class StadiumBookingApp extends JFrame {
         JPanel actions = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 6));
         actions.setOpaque(false);
         JButton schedule = createPrimaryButton(Messages.get("directory.chooseSeats"));
-        schedule.setToolTipText("Choose a date and event, then pick your seats at " + stadium.getName());
+        schedule.setToolTipText(text("stadium.tip.schedule", stadium.getName()));
         schedule.addActionListener(event -> openStadium(stadium));
         actions.add(schedule);
         JButton events = createSecondaryButton(Messages.get("directory.allEvents"));
         events.addActionListener(ignored -> showLiveSchedules());
         actions.add(events);
-        JButton ledger = createSecondaryButton("See seats already booked here");
+        JButton ledger = createSecondaryButton(text("stadium.seeBooked"));
         ledger.addActionListener(event -> {
             selectedStadium = stadium;
             showSeatLedger();
@@ -1263,7 +1370,7 @@ public final class StadiumBookingApp extends JFrame {
         card.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(BORDER), new EmptyBorder(12, 14, 12, 14)));
 
-        JLabel title = new JLabel("Before you book");
+        JLabel title = new JLabel(text("booking.beforeYouBook"));
         title.setForeground(TEXT);
         title.setFont(title.getFont().deriveFont(Font.BOLD, 14f));
         card.add(title, BorderLayout.NORTH);
@@ -1273,15 +1380,15 @@ public final class StadiumBookingApp extends JFrame {
         int total = bookingService.getTotalSeatCount(event);
 
         StringBuilder html = new StringBuilder("<html><body style='font-family:SansSerif; margin:0;'>");
-        row(html, "Date", Messages.dateLabel(event.getDate()));
-        row(html, "Starts", event.getTimeLabel());
-        row(html, "Doors", event.getDoorsLabel());
-        row(html, "Book by", event.getBookingDeadlineLabel());
+        row(html, Messages.get("event.date"), Messages.dateLabel(event.getDate()));
+        row(html, Messages.get("event.starts"), event.getTimeLabel());
+        row(html, Messages.get("event.doors"), event.getDoorsLabel());
+        row(html, Messages.get("event.bookBy"), event.getBookingDeadlineLabel());
         row(html, "Seats", String.valueOf(total));
-        row(html, "From", BookingService.formatMoney(back));
-        row(html, "Best seats", BookingService.formatMoney(front)
+        row(html, Messages.get("event.from"), BookingService.formatMoney(back));
+        row(html, Messages.get("event.bestSeats"), BookingService.formatMoney(front)
                 + " in section A row 1");
-        row(html, "Booking fee", BookingService.formatMoney(BookingService.BOOKING_FEE)
+        row(html, Messages.get("bookings.field.bookingFee"), BookingService.formatMoney(BookingService.BOOKING_FEE)
                 + " per reservation");
         html.append("</body></html>");
 
@@ -1349,7 +1456,7 @@ public final class StadiumBookingApp extends JFrame {
         eventAvailabilityLabel.setForeground(vacancy <= 10.0 ? WARNING_FOREGROUND : SUCCESS_FOREGROUND);
 
         if (mine == 0) {
-            eventSelectionLabel.setText("No seats chosen yet.");
+            eventSelectionLabel.setText(text("booking.noSeatsChosen"));
         } else {
             // The hold countdown is spoken in words so it cannot be mistaken for
             // the total, which is money.
@@ -1411,7 +1518,7 @@ public final class StadiumBookingApp extends JFrame {
                         || notice.getEventId().equals(event.getId()))
                 .collect(java.util.stream.Collectors.toList());
 
-        JLabel title = new JLabel(notices.isEmpty() ? "No notices" : "Notices for this event");
+        JLabel title = new JLabel(notices.isEmpty() ? "No notices" : Messages.get("event.noNotices"));
         title.setForeground(TEXT);
         title.setFont(title.getFont().deriveFont(Font.BOLD, 14f));
         card.add(title, BorderLayout.NORTH);
@@ -1441,12 +1548,13 @@ public final class StadiumBookingApp extends JFrame {
      * customer can see what they are agreeing to pay for.
      */
     private String confirmLabel(int seats) {
-        return "Confirm " + seatCount(seats);
+        return Messages.get("booking.confirmSeats") + " " + seatCount(seats);
     }
 
     /** "1 seat" and "3 seats", so a button never reads "1 seats". */
     private static String seatCount(int seats) {
-        return seats == 1 ? "1 seat" : seats + " seats";
+        return seats == 1 ? Messages.get("booking.seatOne")
+                : seats + " " + Messages.get("booking.seatsWord");
     }
 
     /**
@@ -1460,7 +1568,7 @@ public final class StadiumBookingApp extends JFrame {
 private void confirmBookingHere(StadiumEvent event) {
         List<Seat> chosen = seatMapPanel.getSelectedSeats();
         if (chosen.isEmpty()) {
-            showWarning("Choose at least one seat before confirming.");
+            showWarning(Messages.get("booking.needSeatToConfirm"));
             return;
         }
         if (!collectContactDetailsIfNeeded()) {
@@ -1476,63 +1584,70 @@ private void confirmBookingHere(StadiumEvent event) {
      * @return true when the details are filled in and the booking may proceed
      */
     private boolean collectContactDetailsIfNeeded() {
-        boolean filled = !nameField.getText().trim().isEmpty()
-                && !emailField.getText().trim().isEmpty()
-                && !phoneField.getText().trim().isEmpty();
-        if (filled) {
+        // Already entered and usable, so the customer is not asked again. Checked
+        // for correctness and not merely for being non-empty: three boxes holding
+        // something unusable would otherwise skip the form and be refused later,
+        // which is the dead end this method exists to prevent.
+        if (!CustomerDetails.needsAsking(nameField.getText(), emailField.getText(),
+                phoneField.getText())) {
             return true;
         }
-        JPanel form = new JPanel(new GridBagLayout());
-        form.setOpaque(false);
-        GridBagConstraints constraints = new GridBagConstraints();
-        constraints.anchor = GridBagConstraints.WEST;
-        constraints.insets = new Insets(3, 0, 3, 10);
-        constraints.gridwidth = 2;
-        JLabel heading = new JLabel("Your details, so the booking is yours");
-        heading.setForeground(TEXT);
-        heading.setFont(heading.getFont().deriveFont(Font.BOLD, 13f));
-        form.add(heading, constraints);
-        constraints.gridwidth = 1;
-        constraints.gridy = 1;
-        form.add(new JLabel("Name"), constraints);
-        constraints.gridx = 1;
-        constraints.weightx = 1;
-        constraints.fill = GridBagConstraints.HORIZONTAL;
-        form.add(nameField, constraints);
-        constraints.gridx = 0;
-        constraints.gridy = 2;
-        constraints.weightx = 0;
-        constraints.fill = GridBagConstraints.NONE;
-        form.add(new JLabel("Email"), constraints);
-        constraints.gridx = 1;
-        constraints.weightx = 1;
-        constraints.fill = GridBagConstraints.HORIZONTAL;
-        form.add(emailField, constraints);
-        constraints.gridx = 0;
-        constraints.gridy = 3;
-        constraints.weightx = 0;
-        constraints.fill = GridBagConstraints.NONE;
-        form.add(new JLabel("Phone"), constraints);
-        constraints.gridx = 1;
-        constraints.weightx = 1;
-        constraints.fill = GridBagConstraints.HORIZONTAL;
-        form.add(phoneField, constraints);
+        return showDetailsForm();
+    }
 
-        String choice = showDialogChoice(this, form, "Your details",
-                JOptionPane.PLAIN_MESSAGE, "Continue",
-                "Continue and confirm", BACK_LABEL);
-        if (!"Continue and confirm".equals(choice)) {
-            return false;
+    /**
+     * Asks for the contact details and keeps the form open until they are right.
+     *
+     * <p>This replaces a dead end. It used to read the fields, let the dialog
+     * close, and only then check them — so a mistake closed the form, put a
+     * warning on top of it, and left the customer with an empty form and a
+     * warning telling them what they had got wrong. Now nothing is checked until
+     * the form is ready to close: an unusable entry marks that field, says what
+     * to type, and keeps everything already typed so it can be corrected in
+     * place.
+     *
+     * @return true when the details are usable, false if the customer backed out
+     */
+    private boolean showDetailsForm() {
+        DetailsFormPanel form = new DetailsFormPanel(nameField, emailField, phoneField);
+        // The same form object is shown on every pass, so what has been typed
+        // survives a failed attempt. Rebuilding it each time would wipe the
+        // entry and put the customer back where they started.
+        //
+        // Anything already in the boxes is marked before the first showing. The
+        // boxes are the booking screen's own, so they can arrive here holding a
+        // bad entry, and opening a full form with a wrong entry in it and no
+        // complaint leaves the customer no reason to think it needs changing.
+        java.util.Map<CustomerDetails.Field, CustomerDetails.Problem> already =
+                form.check();
+        if (!already.isEmpty()) {
+            form.showProblems(already);
         }
-        // Checked here so the customer is told what is missing on this screen,
-        // rather than after a confirmation dialog they have already agreed to.
-        try {
-            bookingService.validateCustomer(nameField.getText(), emailField.getText(),
-                    phoneField.getText());
-            return true;
-        } catch (IllegalArgumentException problem) {
-            showWarning(problem.getMessage());
-            return false;
+        while (true) {
+            String choice = showDialogChoice(this, form.panel(), Messages.get("booking.yourDetails"),
+                    JOptionPane.PLAIN_MESSAGE, Messages.get("booking.continue"),
+                    Messages.get("booking.continueAndConfirm"), backLabel());
+            if (!Messages.get("booking.continueAndConfirm").equals(choice)) {
+                return false;
+            }
+            java.util.Map<CustomerDetails.Field, CustomerDetails.Problem> problems =
+                    form.check();
+            if (problems.isEmpty()) {
+                // The one last check, so a booking can never be taken with
+                // details the rules would refuse.
+                try {
+                    bookingService.validateCustomer(nameField.getText(), emailField.getText(),
+                            phoneField.getText());
+                    return true;
+                } catch (IllegalArgumentException problem) {
+                    // Reached only if the form and the service ever disagree,
+                    // which a test guards against. Marked on the form like any
+                    // other problem, rather than raised over the top of it.
+                    form.markAll(problem.getMessage());
+                    continue;
+                }
+            }
+            form.showProblems(problems);
         }
     }
 
@@ -1561,8 +1676,8 @@ private void confirmBookingHere(StadiumEvent event) {
                 // One button that books: it asks for the contact details, takes
                 // the payment and issues the receipt, all in one press.
                 JButton confirm = createPrimaryButton(confirmLabel(chosen.size()));
-                confirm.setToolTipText("Book your " + seatCount(chosen.size())
-                        + " for " + amount + ", then show your receipt");
+                confirm.setToolTipText(text("booking.confirmTip",
+                        seatCount(chosen.size()), amount));
                 confirm.addActionListener(ignored -> confirmBookingHere(event));
                 confirm.setPreferredSize(new Dimension(210, 40));
                 eventConfirmButton = confirm;
@@ -1571,19 +1686,18 @@ private void confirmBookingHere(StadiumEvent event) {
                 JPanel summary = new JPanel();
                 summary.setOpaque(false);
                 summary.setLayout(new BoxLayout(summary, BoxLayout.Y_AXIS));
-                JLabel due = new JLabel("Total " + amount);
+                JLabel due = new JLabel(text("booking.totalInline", amount));
                 due.setForeground(TEXT);
                 due.setFont(due.getFont().deriveFont(Font.BOLD, 13f));
                 summary.add(due);
-                JLabel seats = new JLabel("plus a "
-                        + currency(BookingService.BOOKING_FEE) + " ticketing fee");
+                JLabel seats = new JLabel(text("booking.feeNote", currency(BookingService.BOOKING_FEE)));
                 seats.setForeground(MUTED);
                 seats.setFont(seats.getFont().deriveFont(Font.PLAIN, 10f));
                 summary.add(seats);
                 confirmRow.add(summary, BorderLayout.WEST);
                 confirmRow.add(confirm, BorderLayout.EAST);
             } else {
-                JLabel hint = new JLabel("Choose one or more seats, then confirm here");
+                JLabel hint = new JLabel(text("booking.chooseSeatsHint"));
                 hint.setForeground(MUTED);
                 hint.setFont(hint.getFont().deriveFont(Font.PLAIN, 11f));
                 confirmRow.add(hint, BorderLayout.WEST);
@@ -1600,12 +1714,12 @@ private void confirmBookingHere(StadiumEvent event) {
         // the confirm button rather than competing with it.
         JPanel links = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 4));
         links.setOpaque(false);
-        JButton venue = createSecondaryButton("About "
-                + StadiumData.getStadium(event.getStadiumId()).getName());
+        JButton venue = createSecondaryButton(text("stadium.aboutButton",
+                StadiumData.getStadium(event.getStadiumId()).getName()));
         venue.addActionListener(ignored -> showStadiumDetails(
                 StadiumData.getStadium(event.getStadiumId())));
         links.add(venue);
-        JButton schedules = createSecondaryButton("See all live schedules");
+        JButton schedules = createSecondaryButton(text("directory.seeAllSchedules"));
         schedules.addActionListener(ignored -> showLiveSchedules());
         links.add(schedules);
         actions.add(links);
@@ -1626,35 +1740,64 @@ private void confirmBookingHere(StadiumEvent event) {
     private void saveCurrentSelection() {
         List<Seat> chosen = seatMapPanel.getSelectedSeats();
         if (chosen.isEmpty()) {
-            showWarning("Choose at least one seat before saving it.");
+            showWarning(Messages.get("booking.needSeatToSave"));
             return;
         }
         JTextField label = new JTextField(18);
         label.setFont(label.getFont().deriveFont(Font.PLAIN, 13f));
-        label.setText(selectedEvent == null ? "My seats" : selectedEvent.getHeadline());
+        label.setText(selectedEvent == null ? Messages.get("booking.mySeats") : selectedEvent.getHeadline());
+        // The limit is in the field's own description as well as in the form, so
+        // it is known before anything is refused rather than discovered by being
+        // told the label is too long.
+        describe(label, Messages.get("booking.labelHint"),
+                Messages.get("seatMap.upTo") + " " + FormRules.MAX_LABEL_LENGTH + " characters. Something you will "
+                        + "recognise later.");
         JPanel form = new JPanel(new GridBagLayout());
         form.setOpaque(false);
         GridBagConstraints constraints = new GridBagConstraints();
         constraints.anchor = GridBagConstraints.WEST;
         constraints.insets = new Insets(4, 0, 4, 10);
-        form.add(new JLabel("Call it something you will recognise"), constraints);
+        form.add(new JLabel(text("saved.labelHint")), constraints);
         constraints.gridy = 1;
         form.add(label, constraints);
 
-        String choice = showDialogChoice(this, form, "Save these seats for later",
-                JOptionPane.PLAIN_MESSAGE, "Save", "Save this selection", BACK_LABEL);
-        if (!"Save this selection".equals(choice)) {
-            return;
-        }
-        try {
-            BookingStore.SavedSelection saved = bookingService.saveSelection(
-                    label.getText(), chosen);
-            seatMapPanel.clearSelection();
-            showStatus("Saved " + saved.getSeats().size() + " seat"
-                    + (saved.getSeats().size() == 1 ? "" : "s") + " as " + saved.getId()
-                    + "  •  find them under Saved seats");
-        } catch (IllegalArgumentException | IllegalStateException exception) {
-            showWarning(exception.getMessage());
+        JLabel labelError = new JLabel();
+        labelError.setForeground(DANGER);
+        labelError.setFont(labelError.getFont().deriveFont(Font.PLAIN, 10f));
+        labelError.setPreferredSize(new Dimension(300, 14));
+        constraints.gridy = 2;
+        form.add(labelError, constraints);
+
+        // The message is not cleared at the top of the loop, so a refusal keeps
+        // explaining itself while the customer works out what to change.
+        while (true) {
+            String choice = showDialogChoice(this, form, Messages.get("booking.saveTheseSeats"),
+                    JOptionPane.PLAIN_MESSAGE, Messages.get("common.save"), Messages.get("booking.saveSelection"), backLabel());
+            if (!Messages.get("booking.saveSelection").equals(choice)) {
+                return;
+            }
+            String labelProblem = FormRules.labelProblem(label.getText());
+            if (labelProblem != null) {
+                labelError.setText(labelProblem);
+                label.selectAll();
+                SwingUtilities.invokeLater(label::requestFocusInWindow);
+                continue;
+            }
+            try {
+                BookingStore.SavedSelection saved = bookingService.saveSelection(
+                        label.getText(), chosen);
+                seatMapPanel.clearSelection();
+                showStatus(Messages.get("booking.saved") + " " + saved.getSeats().size() + " seat"
+                        + (saved.getSeats().size() == 1 ? "" : "s") + " as " + saved.getId()
+                        + "  •  find them under Saved seats");
+                return;
+            } catch (IllegalArgumentException | IllegalStateException exception) {
+                // Stays open with the label still in the box. A refused save
+                // used to close the dialog and leave nothing behind.
+                labelError.setText(exception.getMessage());
+                label.selectAll();
+                SwingUtilities.invokeLater(label::requestFocusInWindow);
+            }
         }
     }
 
@@ -1662,12 +1805,12 @@ private void confirmBookingHere(StadiumEvent event) {
     private void showSavedSeats() {
         currentScreen = "saved-seats";
         setHeader(Messages.get("saved.title"),
-                "Seats you chose earlier, kept until you book them or discard them.");
+                Messages.get("saved.subtitle"));
         contentHost.removeAll();
         contentHost.add(buildSavedSeatsContent(), BorderLayout.CENTER);
         contentHost.revalidate();
         contentHost.repaint();
-        showStatus("Saved seats");
+        showStatus(Messages.get("nav.savedTitle"));
     }
 
     private JPanel buildSavedSeatsContent() {
@@ -1677,7 +1820,7 @@ private void confirmBookingHere(StadiumEvent event) {
 
         JPanel top = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
         top.setOpaque(false);
-        JButton back = createOutlineButton("\u2190 All stadiums", BLUE);
+        JButton back = createOutlineButton(text("common.allStadiums"), BLUE);
         back.addActionListener(ignored -> showStadiumDirectory());
         top.add(back);
         page.add(top, BorderLayout.NORTH);
@@ -1708,7 +1851,7 @@ private void confirmBookingHere(StadiumEvent event) {
             empty.add(sideText("<b>Nothing saved yet.</b><br>Pick the seats you want on an event, "
                     + "then press <b>Save these seats</b> on the booking screen. They will be here "
                     + "next time you open the application.", "#475569", 11f), BorderLayout.CENTER);
-            JButton find = createPrimaryButton("Find an event to book");
+            JButton find = createPrimaryButton(text("saved.findEvent"));
             find.addActionListener(ignored -> showStadiumDirectory());
             JPanel actions = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
             actions.setOpaque(false);
@@ -1759,13 +1902,13 @@ private void confirmBookingHere(StadiumEvent event) {
 
         JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
         actions.setOpaque(false);
-        JButton resume = createPrimaryButton("Resume and book");
+        JButton resume = createPrimaryButton(text("saved.resume"));
         resume.setEnabled(problem == null);
         if (problem != null) {
             resume.setToolTipText(problem);
         }
         resume.addActionListener(ignored -> resumeSelection(selection));
-        JButton discard = createSecondaryButton("Discard",
+        JButton discard = createSecondaryButton(text("common.discard"),
                 problem == null ? new Color(185, 28, 28) : MUTED);
         discard.addActionListener(ignored -> discardSelection(selection));
         actions.add(resume);
@@ -1780,7 +1923,7 @@ private void confirmBookingHere(StadiumEvent event) {
     private void resumeSelection(BookingStore.SavedSelection selection) {
         StadiumEvent event = StadiumData.getEvent(selection.getEventId());
         if (event == null) {
-            showWarning("That event is no longer on the schedule.");
+            showWarning(Messages.get("error.eventGone"));
             return;
         }
         String problem = bookingService.whySelectionCannotBeUsed(selection);
@@ -1795,7 +1938,7 @@ private void confirmBookingHere(StadiumEvent event) {
         int restored = seatMapPanel.setSelectedKeys(selection.getSeats());
         updateBookingSummary();
         seatMapPanel.repaint();
-        showStatus("Picked up " + restored + " saved seat"
+        showStatus(Messages.get("booking.pickedUp") + " " + restored + " saved seat"
                 + (restored == 1 ? "" : "s"));
     }
 
@@ -1804,15 +1947,15 @@ private void confirmBookingHere(StadiumEvent event) {
                 "Discard \"" + selection.getLabel() + "\"?\\n\\n"
                         + "The saved seats are forgotten. Nothing was booked, so nothing is "
                         + "charged and the seats go back on sale.",
-                "Discard saved seats", JOptionPane.QUESTION_MESSAGE, "Choose",
-                "Discard them", "Keep them");
-        if (!"Discard them".equals(choice)) {
+                Messages.get("booking.discardSaved"), JOptionPane.QUESTION_MESSAGE, "Choose",
+                Messages.get("common.discardThem"), Messages.get("common.keepThem"));
+        if (!Messages.get("common.discardThem").equals(choice)) {
             return;
         }
         if (bookingService.deleteSavedSelection(selection.getId())) {
-            showStatus("Saved seats discarded");
+            showStatus(Messages.get("booking.discarded"));
         } else {
-            showWarning("That selection could not be discarded. Please try again.");
+            showWarning(Messages.get("booking.couldNotDiscard"));
         }
         contentHost.removeAll();
         contentHost.add(buildSavedSeatsContent(), BorderLayout.CENTER);
@@ -1835,7 +1978,7 @@ private void confirmBookingHere(StadiumEvent event) {
         contentHost.add(buildStadiumDashboard(stadium), BorderLayout.CENTER);
         contentHost.revalidate();
         contentHost.repaint();
-        showStatus("Viewing the " + stadium.getName() + " schedule");
+        showStatus(Messages.get("booking.viewing") + " " + stadium.getName() + " schedule");
     }
 
     // ---------------------------------------------------------------------
@@ -1869,8 +2012,8 @@ private void confirmBookingHere(StadiumEvent event) {
 
         JPanel top = new JPanel(new BorderLayout(12, 0));
         top.setOpaque(false);
-        JButton back = createOutlineButton("Stadium information", accent);
-        back.setToolTipText("Everything about the venue: capacity, seating, address");
+        JButton back = createOutlineButton(text("stadium.info"), accent);
+        back.setToolTipText(text("stadium.infoTip"));
         back.addActionListener(event -> showStadiumDetails(stadium));
         top.add(back, BorderLayout.WEST);
         JLabel venueType = new JLabel(stadium.getVenueType().toUpperCase(Locale.ENGLISH));
@@ -1907,9 +2050,9 @@ private void confirmBookingHere(StadiumEvent event) {
         stats.setOpaque(false);
         List<StadiumEvent> events = bookingService.getEvents(stadium.getId());
         StadiumEvent next = events.isEmpty() ? null : events.get(0);
-        stats.add(createStat("LOCATION", stadium.getLocation()));
-        stats.add(createStat("CAPACITY", formatCapacity(stadium.getCapacity())));
-        stats.add(createStat("NEXT EVENT", next == null ? "—" : next.getDateLabel()));
+        stats.add(createStat(Messages.get("facts.whereUpper"), stadium.getLocation()));
+        stats.add(createStat(Messages.get("home.capacityUpper"), formatCapacity(stadium.getCapacity())));
+        stats.add(createStat(Messages.get("home.nextEvent"), next == null ? "—" : next.getDateLabel()));
         hero.add(stats, BorderLayout.EAST);
         return hero;
     }
@@ -1951,7 +2094,7 @@ private void confirmBookingHere(StadiumEvent event) {
         title.setForeground(TEXT);
         title.setFont(title.getFont().deriveFont(Font.BOLD, 13f));
         titleBox.add(title, constraints);
-        JLabel subtitle = new JLabel("Cancellations and emergency updates");
+        JLabel subtitle = new JLabel(text("stadium.noticesSubtitle"));
         subtitle.setForeground(MUTED);
         subtitle.setFont(subtitle.getFont().deriveFont(Font.PLAIN, 10f));
         constraints.gridy = 1;
@@ -1980,7 +2123,7 @@ private void confirmBookingHere(StadiumEvent event) {
             }
         }
         if (visibleCount == 0) {
-            JLabel empty = new JLabel("No active notices. Special requests can still be sent to the venue team.");
+            JLabel empty = new JLabel(text("stadium.noNotices"));
             empty.setForeground(MUTED);
             empty.setFont(empty.getFont().deriveFont(Font.PLAIN, 10f));
             empty.setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -2055,8 +2198,8 @@ private void confirmBookingHere(StadiumEvent event) {
 
     private void showSpecialRequestDialog(Stadium stadium) {
         JComboBox<String> category = new JComboBox<>(new String[]{
-                "Event cancellation", "Stadium emergency", "Safety notice",
-                "Accessibility request", "Other request"});
+                Messages.get("request.typeCancellation"), Messages.get("request.typeEmergency"), Messages.get("request.typeSafety"),
+                Messages.get("request.typeAccess"), Messages.get("request.typeOther")});
         JTextArea message = new JTextArea(5, 42);
         message.setLineWrap(true);
         message.setWrapStyleWord(true);
@@ -2070,7 +2213,7 @@ private void confirmBookingHere(StadiumEvent event) {
         constraints.gridy = 0;
         constraints.anchor = GridBagConstraints.NORTHWEST;
         constraints.insets = new Insets(4, 4, 4, 4);
-        JLabel categoryLabel = new JLabel("Request type");
+        JLabel categoryLabel = new JLabel(text("request.type"));
         categoryLabel.setFont(categoryLabel.getFont().deriveFont(Font.BOLD, 11f));
         form.add(categoryLabel, constraints);
         constraints.gridx = 1;
@@ -2081,7 +2224,7 @@ private void confirmBookingHere(StadiumEvent event) {
         constraints.gridy = 1;
         constraints.weightx = 0;
         constraints.fill = GridBagConstraints.NONE;
-        JLabel messageLabel = new JLabel("Details");
+        JLabel messageLabel = new JLabel(text("request.details"));
         messageLabel.setFont(messageLabel.getFont().deriveFont(Font.BOLD, 11f));
         form.add(messageLabel, constraints);
         constraints.gridx = 1;
@@ -2090,19 +2233,56 @@ private void confirmBookingHere(StadiumEvent event) {
         constraints.fill = GridBagConstraints.BOTH;
         form.add(message, constraints);
 
-        String result = showDialogChoice(this, form,
-                "Submit a special request to " + stadium.getName(),
-                JOptionPane.PLAIN_MESSAGE, "Submit request", BACK_LABEL, "Submit request");
-        if (!"Submit request".equals(result)) {
-            return;
-        }
-        try {
-            bookingService.addSpecialRequest(stadium.getId(), String.valueOf(category.getSelectedItem()),
-                    message.getText());
-            openStadium(stadium);
-            showStatus("Special request submitted to " + stadium.getName());
-        } catch (IllegalArgumentException exception) {
-            showWarning(exception.getMessage());
+        // The message box is the one field here that can be refused, and the
+        // rule is not visible from the box itself, so the accepted length is
+        // shown rather than left for the customer to discover by being refused.
+        JLabel hint = new JLabel(text("request.minHint", FormRules.MIN_REQUEST_LENGTH));
+        hint.setForeground(MUTED);
+        hint.setFont(hint.getFont().deriveFont(Font.PLAIN, 10f));
+        constraints.gridx = 1;
+        constraints.gridy = 2;
+        constraints.weighty = 0;
+        constraints.fill = GridBagConstraints.HORIZONTAL;
+        form.add(hint, constraints);
+
+        JLabel messageError = new JLabel();
+        messageError.setForeground(DANGER);
+        messageError.setFont(messageError.getFont().deriveFont(Font.PLAIN, 10f));
+        messageError.setPreferredSize(new Dimension(420, 14));
+        constraints.gridy = 3;
+        form.add(messageError, constraints);
+
+        // The message is not cleared at the top of the loop. It is set after a
+        // refused attempt and has to survive into the next pass, or the customer
+        // is shown the same problem with no explanation of it.
+        while (true) {
+            String result = showDialogChoice(this, form,
+                    Messages.get("request.submitTo") + " " + stadium.getName(),
+                    JOptionPane.PLAIN_MESSAGE, Messages.get("request.submit"),
+                    backLabel(), Messages.get("request.submit"));
+            if (!Messages.get("request.submit").equals(result)) {
+                return;
+            }
+            String requestProblem = FormRules.requestProblem(message.getText());
+            if (requestProblem != null) {
+                messageError.setText(requestProblem);
+                message.selectAll();
+                SwingUtilities.invokeLater(message::requestFocusInWindow);
+                continue;
+            }
+            try {
+                bookingService.addSpecialRequest(stadium.getId(),
+                        String.valueOf(category.getSelectedItem()), message.getText());
+                openStadium(stadium);
+                showStatus(Messages.get("request.submittedTo") + " " + stadium.getName());
+                return;
+            } catch (IllegalArgumentException exception) {
+                // The form stays open with the message still in the box, so the
+                // customer extends what they wrote rather than retyping it.
+                messageError.setText(exception.getMessage());
+                final JTextArea box = message;
+                SwingUtilities.invokeLater(box::requestFocusInWindow);
+            }
         }
     }
 
@@ -2140,7 +2320,7 @@ private void confirmBookingHere(StadiumEvent event) {
         filters.add(buildSearchBar(eventSearchField, text("stadium.search.hint")), BorderLayout.CENTER);
         scheduleDates = new ArrayList<>(StadiumData.getDates(stadium.getId()));
         String[] dateChoices = new String[scheduleDates.size() + 1];
-        dateChoices[0] = "All dates";
+        dateChoices[0] = Messages.get("schedules.allDates");
         for (int index = 0; index < scheduleDates.size(); index++) {
             LocalDate date = scheduleDates.get(index);
             int eventCount = 0;
@@ -2202,7 +2382,7 @@ private void confirmBookingHere(StadiumEvent event) {
         list.setOpaque(false);
         list.setLayout(new BoxLayout(list, BoxLayout.Y_AXIS));
         if (events.isEmpty()) {
-            list.add(buildEmptyState("No events match", "Try another date or clear the search field."));
+            list.add(buildEmptyState(Messages.get("schedules.noMatch"), Messages.get("schedules.tryAnother")));
         } else {
             for (StadiumEvent event : events) {
                 list.add(createEventCard(event));
@@ -2214,7 +2394,7 @@ private void confirmBookingHere(StadiumEvent event) {
         scroll.getViewport().setBackground(WHITE);
         scroll.getVerticalScrollBar().setUnitIncrement(18);
         scheduleListHost.add(scroll, BorderLayout.CENTER);
-        String dateText = selectedScheduleDate == null ? "all dates" : selectedScheduleDate.format(DATE_FORMATTER);
+        String dateText = selectedScheduleDate == null ? Messages.get("schedules.allDates") : selectedScheduleDate.format(DATE_FORMATTER);
         scheduleResultLabel.setText(events.size() + " event" + (events.size() == 1 ? "" : "s")
                 + " • " + dateText);
         scheduleListHost.revalidate();
@@ -2224,12 +2404,12 @@ private void confirmBookingHere(StadiumEvent event) {
     private String eventCountdownText(StadiumEvent event) {
         StadiumAnnouncement blocking = bookingService.getBlockingAnnouncement(event);
         if (blocking != null) {
-            return "Unavailable • " + blocking.getTitle();
+            return Messages.get("event.unavailable") + " • " + blocking.getTitle();
         }
         if (!event.isBookingOpen()) {
-            return "Closed • " + event.getBookingDeadlineLabel();
+            return Messages.get("event.closed") + " • " + event.getBookingDeadlineLabel();
         }
-        return "Booking stops in " + event.getCountdownLabel();
+        return Messages.get("event.bookingStopsIn") + " " + event.getCountdownLabel();
     }
 
     /**
@@ -2240,16 +2420,16 @@ private void confirmBookingHere(StadiumEvent event) {
         StadiumAnnouncement blocking = bookingService.getBlockingAnnouncement(event);
         if (blocking != null) {
             if (blocking.getType() == AnnouncementType.CANCELLATION) {
-                return "Event cancelled";
+                return Messages.get("event.eventCancelled");
             }
             if (blocking.getType() == AnnouncementType.EMERGENCY) {
-                return "Emergency notice";
+                return Messages.get("event.emergencyNotice");
             }
         }
         if (!event.isBookingOpen()) {
-            return "Booking closed";
+            return Messages.get("seatMap.bookingClosed");
         }
-        return "Details and booking";
+        return Messages.get("event.detailsAndBooking");
     }
 
     /** Shows how long the customer's held seats stay reserved for them. */
@@ -2287,7 +2467,7 @@ private void confirmBookingHere(StadiumEvent event) {
             // label beside it already says what is wrong.
         }
         if (selectedEvent != null) {
-            bookingCountdownValue.setText("Booking stops in " + selectedEvent.getCountdownLabel());
+            bookingCountdownValue.setText(text("booking.stopsIn", selectedEvent.getCountdownLabel()));
         }
     }
 
@@ -2308,7 +2488,7 @@ private void confirmBookingHere(StadiumEvent event) {
         card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 150));
         // Tapping anywhere on an event opens its details, where the booking button is.
         card.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        card.setToolTipText("Open the details for " + event.getHeadline());
+        card.setToolTipText(text("event.tip.open", event.getHeadline()));
         card.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent click) {
@@ -2333,7 +2513,7 @@ private void confirmBookingHere(StadiumEvent event) {
         timeConstraints.gridy = 1;
         timeConstraints.insets = new Insets(2, 0, 0, 0);
         time.add(date, timeConstraints);
-        JLabel doors = new JLabel("Doors " + event.getDoorsLabel());
+        JLabel doors = new JLabel(text("event.doors", event.getDoorsLabel()));
         doors.setForeground(MUTED);
         doors.setFont(doors.getFont().deriveFont(Font.PLAIN, 10f));
         timeConstraints.gridy = 2;
@@ -2389,7 +2569,7 @@ private void confirmBookingHere(StadiumEvent event) {
         action.add(deadline, actionConstraints);
         // A closed event is still worth opening: its details page explains why,
         // where the straight-to-seat-map path used to just refuse.
-        JButton choose = createPrimaryButton(open ? "Details and booking" : "Why it is closed");
+        JButton choose = createPrimaryButton(open ? Messages.get("event.detailsAndBooking") : Messages.get("event.whyItIsClosed"));
         eventActionButtons.put(choose, event);
         choose.addActionListener(ignored -> showEventDetails(event));
         actionConstraints.gridy = 2;
@@ -2409,14 +2589,14 @@ private void confirmBookingHere(StadiumEvent event) {
      */
     private void showLiveSchedules() {
         currentScreen = "schedules";
-        setHeader(text("nav.liveSchedules"), "Every upcoming game and concert at Namboole, soonest first.");
+        setHeader(text("nav.liveSchedules"), Messages.get("schedules.subtitle"));
         contentHost.removeAll();
         contentHost.add(buildLiveSchedulesContent(), BorderLayout.CENTER);
         contentHost.revalidate();
         contentHost.repaint();
         loadLiveFilters();
         refreshLiveSchedules();
-        showStatus("Live schedules");
+        showStatus(Messages.get("schedules.title"));
     }
 
     private JPanel buildLiveSchedulesContent() {
@@ -2435,13 +2615,13 @@ private void confirmBookingHere(StadiumEvent event) {
         titleConstraints.anchor = GridBagConstraints.WEST;
         titleConstraints.fill = GridBagConstraints.HORIZONTAL;
         titleConstraints.weightx = 1;
-        JLabel title = new JLabel("All upcoming events");
+        JLabel title = new JLabel(text("events.allUpcoming"));
         title.setForeground(TEXT);
         title.setFont(title.getFont().deriveFont(Font.BOLD, 21f));
         titleConstraints.gridy = 1;
         titleConstraints.insets = new Insets(7, 0, 0, 0);
         titleBox.add(title, titleConstraints);
-        JLabel subtitle = new JLabel("Soonest first, every game and concert at Namboole. Pick an event to choose seats.");
+        JLabel subtitle = new JLabel(text("events.allUpcomingSubtitle"));
         subtitle.setForeground(MUTED);
         subtitle.setFont(subtitle.getFont().deriveFont(Font.PLAIN, 11f));
         titleConstraints.gridy = 2;
@@ -2461,12 +2641,12 @@ private void confirmBookingHere(StadiumEvent event) {
         liveDateCombo.setPreferredSize(new Dimension(180, 38));
         liveDateCombo.setBackground(WHITE);
         liveDateCombo.addActionListener(event -> refreshLiveSchedules());
-        liveTypeCombo = new JComboBox<>(new String[]{"All types", "Games", "Concerts"});
+        liveTypeCombo = new JComboBox<>(new String[]{Messages.get("schedules.allTypes"), Messages.get("schedules.games"), Messages.get("schedules.concerts")});
         liveTypeCombo.setPreferredSize(new Dimension(130, 38));
         liveTypeCombo.setBackground(WHITE);
         liveTypeCombo.addActionListener(event -> refreshLiveSchedules());
-        filters.add(labelled("Date", liveDateCombo));
-        filters.add(labelled("Type", liveTypeCombo));
+        filters.add(labelled(Messages.get("event.date"), liveDateCombo));
+        filters.add(labelled(Messages.get("facts.type"), liveTypeCombo));
         top.add(filters, BorderLayout.EAST);
         page.add(top, BorderLayout.NORTH);
 
@@ -2494,7 +2674,7 @@ private void confirmBookingHere(StadiumEvent event) {
             return;
         }
         liveDateCombo.removeAllItems();
-        liveDateCombo.addItem("All dates");
+        liveDateCombo.addItem(Messages.get("schedules.allDates"));
         List<LocalDate> dates = new ArrayList<>();
         for (StadiumEvent event : StadiumData.getEvents()) {
             if (!dates.contains(event.getDate())) {
@@ -2508,14 +2688,14 @@ private void confirmBookingHere(StadiumEvent event) {
         liveDateCombo.setSelectedIndex(0);
     }
 
-    /** "Today" / "Tomorrow" / "Sat, 3 Oct 2026". */
+    /** Messages.get("schedules.today") / Messages.get("schedules.tomorrow") / "Sat, 3 Oct 2026". */
     private String dayLabel(LocalDate date) {
         LocalDate today = LocalDate.now();
         if (date.equals(today)) {
-            return "Today · " + date.format(DATE_FORMATTER);
+            return Messages.get("schedules.today") + " · " + date.format(DATE_FORMATTER);
         }
         if (date.equals(today.plusDays(1))) {
-            return "Tomorrow · " + date.format(DATE_FORMATTER);
+            return Messages.get("schedules.tomorrow") + " · " + date.format(DATE_FORMATTER);
         }
         return date.format(DATE_FORMATTER);
     }
@@ -2565,8 +2745,8 @@ private void confirmBookingHere(StadiumEvent event) {
         list.setOpaque(false);
         list.setLayout(new BoxLayout(list, BoxLayout.Y_AXIS));
         if (events.isEmpty()) {
-            list.add(buildEmptyState("No events match",
-                    "Try a different date, type or search word."));
+            list.add(buildEmptyState(Messages.get("schedules.noMatch"),
+                    Messages.get("schedules.tryDifferent")));
         } else {
             LocalDate current = null;
             for (StadiumEvent event : events) {
@@ -2631,7 +2811,7 @@ private void confirmBookingHere(StadiumEvent event) {
     private void openEventFromSchedule(StadiumEvent event) {
         Stadium stadium = StadiumData.getStadium(event.getStadiumId());
         if (stadium == null) {
-            showWarning("That venue is no longer available.");
+            showWarning(Messages.get("error.venueGone"));
             return;
         }
         selectedStadium = stadium;
@@ -2687,7 +2867,7 @@ private void confirmBookingHere(StadiumEvent event) {
         contentHost.revalidate();
         contentHost.repaint();
         updateBookingSummary();
-        showStatus("Event selected: " + event.getHeadline());
+        showStatus(Messages.get("event.selected") + " " + event.getHeadline());
     }
 
     private JPanel buildBookingScreen() {
@@ -2751,13 +2931,13 @@ private void confirmBookingHere(StadiumEvent event) {
         date.setForeground(TEXT);
         date.setFont(date.getFont().deriveFont(Font.BOLD, 14f));
         when.add(date, whenConstraints);
-        JLabel time = new JLabel("Starts " + selectedEvent.getTimeLabel() + "  •  Doors " + selectedEvent.getDoorsLabel());
+        JLabel time = new JLabel(text("event.starts", selectedEvent.getTimeLabel(), selectedEvent.getDoorsLabel()));
         time.setForeground(MUTED);
         time.setFont(time.getFont().deriveFont(Font.PLAIN, 11f));
         whenConstraints.gridy = 1;
         whenConstraints.insets = new Insets(4, 0, 0, 0);
         when.add(time, whenConstraints);
-        JLabel deadline = new JLabel("Booking deadline: " + selectedEvent.getBookingDeadlineLabel());
+        JLabel deadline = new JLabel(text("event.deadline", selectedEvent.getBookingDeadlineLabel()));
         deadline.setForeground(bookingService.isBookingOpen(selectedEvent) ? MUTED : WARNING_FOREGROUND);
         deadline.setFont(deadline.getFont().deriveFont(Font.PLAIN, 10f));
         whenConstraints.gridy = 2;
@@ -2772,7 +2952,7 @@ private void confirmBookingHere(StadiumEvent event) {
         when.add(vacancy, whenConstraints);
         bookingCountdownValue.setForeground(BLUE_DARK);
         bookingCountdownValue.setFont(bookingCountdownValue.getFont().deriveFont(Font.BOLD, 11f));
-        bookingCountdownValue.setText("Booking stops in " + selectedEvent.getCountdownLabel());
+        bookingCountdownValue.setText(text("booking.stopsIn", selectedEvent.getCountdownLabel()));
         whenConstraints.gridy = 4;
         whenConstraints.insets = new Insets(4, 0, 0, 0);
         when.add(bookingCountdownValue, whenConstraints);
@@ -2816,9 +2996,9 @@ private void confirmBookingHere(StadiumEvent event) {
         card.add(heading, BorderLayout.NORTH);
         JPanel fields = new JPanel(new GridBagLayout());
         fields.setOpaque(false);
-        addField(fields, 0, "Name", nameField);
-        addField(fields, 1, "Email", emailField);
-        addField(fields, 2, "Phone", phoneField);
+        addField(fields, 0, Messages.get("form.name"), nameField);
+        addField(fields, 1, Messages.get("bookings.field.email"), emailField);
+        addField(fields, 2, Messages.get("bookings.field.phone"), phoneField);
         card.add(fields, BorderLayout.CENTER);
         return card;
     }
@@ -2853,7 +3033,10 @@ private void confirmBookingHere(StadiumEvent event) {
         title.setForeground(TEXT);
         title.setFont(title.getFont().deriveFont(Font.BOLD, 15f));
         heading.add(title, BorderLayout.WEST);
-        JLabel hint = new JLabel(Messages.get("booking.limitHint"));
+        // The limit is passed in rather than written into the wording, so the
+        // screen cannot claim a different number from the one the code enforces.
+        JLabel hint = new JLabel(Messages.get("booking.limitHint",
+                BookingService.MAX_SEATS_PER_BOOKING));
         hint.setForeground(MUTED);
         hint.setFont(hint.getFont().deriveFont(Font.PLAIN, 11f));
         heading.add(hint, BorderLayout.EAST);
@@ -3009,11 +3192,10 @@ private void confirmBookingHere(StadiumEvent event) {
         clearSelectionButton = createSecondaryButton(text("booking.clearSeats"));
         clearSelectionButton.addActionListener(event -> clearSelection());
         JButton saveSelection = createSecondaryButton(Messages.get("booking.saveSelection"));
-        saveSelection.setToolTipText("Keep these seats and choose them later. "
-                + "This does not book or hold them");
+        saveSelection.setToolTipText(text("saved.tip.keep"));
         saveSelection.addActionListener(ignored -> saveCurrentSelection());
         JButton viewBooked = createSecondaryButton(Messages.get("booking.viewBooked"));
-        viewBooked.setToolTipText("See every seat already taken for this event");
+        viewBooked.setToolTipText(text("ledger.tip"));
         viewBooked.addActionListener(event -> showSeatLedger());
         actions.add(clearSelectionButton);
         actions.add(saveSelection);
@@ -3026,7 +3208,7 @@ private void confirmBookingHere(StadiumEvent event) {
     private void onSeatToggled(Seat seat) {
         boolean selected = seatMapPanel.getSelectedSeats().stream()
                 .anyMatch(item -> item.getKey().equals(seat.getKey()));
-        showStatus((selected ? "Selected seat " : "Removed seat ") + seat.display());
+        showStatus((selected ? Messages.get("booking.selectedSeat") + " " : Messages.get("booking.removedSeat") + " ") + seat.display());
     }
 
     private void refreshPricingBreakdown() {
@@ -3051,11 +3233,11 @@ private void confirmBookingHere(StadiumEvent event) {
                         currency(seat.getPrice()), false));
             }
             pricingBreakdownHost.add(Box.createVerticalStrut(4));
-            pricingBreakdownHost.add(createPriceRow("Seat subtotal",
+            pricingBreakdownHost.add(createPriceRow(Messages.get("booking.seatSubtotalLabel"),
                     currency(bookingService.totalFor(selectedSeats)), false));
-            pricingBreakdownHost.add(createPriceRow("Booking fee (once)",
+            pricingBreakdownHost.add(createPriceRow(Messages.get("booking.bookingFeeOnce"),
                     currency(bookingService.getBookingFee()), false));
-            pricingBreakdownHost.add(createPriceRow("Total due",
+            pricingBreakdownHost.add(createPriceRow(Messages.get("booking.totalDueLabel"),
                     currency(bookingService.getTotalCharge(selectedSeats)), true));
         }
         pricingBreakdownHost.revalidate();
@@ -3134,7 +3316,7 @@ private void confirmBookingHere(StadiumEvent event) {
 
     private void clearSelection() {
         seatMapPanel.clearSelection();
-        showStatus("Seat selection cleared");
+        showStatus(Messages.get("booking.seatSelectionCleared"));
     }
 
     /**
@@ -3153,7 +3335,7 @@ private void confirmBookingHere(StadiumEvent event) {
         }
         List<Seat> selectedSeats = seatMapPanel.getSelectedSeats();
         if (selectedSeats.isEmpty()) {
-            showWarning("Select at least one seat before confirming.");
+            showWarning(Messages.get("booking.needSeatToConfirm"));
             return;
         }
         try {
@@ -3164,6 +3346,14 @@ private void confirmBookingHere(StadiumEvent event) {
                     phoneField.getText(), selectedSeats);
             showBookingReceipt(booking, selectedEvent);
         } catch (IllegalArgumentException exception) {
+            // The details were checked before the booking was attempted, so
+            // arriving here means something other than what was typed went
+            // wrong. It is still shown as a warning, but the customer is put back
+            // on the details form so they can check and correct them rather than
+            // being left with a warning and no way to act on it.
+            if (!collectContactDetailsIfNeeded()) {
+                return;
+            }
             showWarning(exception.getMessage());
         }
     }
@@ -3183,7 +3373,7 @@ private void confirmBookingHere(StadiumEvent event) {
         seatMapPanel.refreshStatuses();
         clearContactFields();
         updateBookingSummary();
-        showStatus("Seat" + (booking.getSeats().size() == 1 ? "" : "s") + " booked: "
+        showStatus(Messages.get("ledger.seat") + (booking.getSeats().size() == 1 ? "" : "s") + " booked: "
                 + booking.getSeatDisplay());
         settleAndIssueTicket(booking, event);
     }
@@ -3209,7 +3399,7 @@ private void confirmBookingHere(StadiumEvent event) {
         if (perSection.size() <= 1) {
             return "";
         }
-        StringBuilder text = new StringBuilder("By section:  ");
+        StringBuilder text = new StringBuilder(Messages.get("booking.bySection"));
         boolean first = true;
         for (Map.Entry<String, Integer> entry : perSection.entrySet()) {
             if (!first) {
@@ -3240,8 +3430,8 @@ private void confirmBookingHere(StadiumEvent event) {
         note.setFont(note.getFont().deriveFont(Font.PLAIN, 10f));
         form.add(note, BorderLayout.SOUTH);
 
-        String choice = showDialogChoice(this, form, "Payment",
-                JOptionPane.PLAIN_MESSAGE, "Pay", "Pay", BACK_LABEL);
+        String choice = showDialogChoice(this, form, Messages.get("payment.title"),
+                JOptionPane.PLAIN_MESSAGE, Messages.get("common.pay"), "Pay", backLabel());
         if (!"Pay".equals(choice)) {
             return;
         }
@@ -3250,7 +3440,7 @@ private void confirmBookingHere(StadiumEvent event) {
                 ? PaymentRecord.simulatedMobileMoney(booking.getTotal(), phoneField.getText())
                 : PaymentRecord.cashAtVenue(booking.getTotal());
 
-        showStatus("Booking " + booking.getReference() + " • " + payment.describe());
+        showStatus(Messages.get("event.bookingWord") + " " + booking.getReference() + " • " + payment.describe());
         // The receipt is what the customer asked for: an itemised bill for the
         // booking. The e-ticket is still one button away inside it, for anyone
         // who needs the gate document rather than the bill.
@@ -3279,12 +3469,12 @@ private void confirmBookingHere(StadiumEvent event) {
         area.setMargin(new java.awt.Insets(10, 12, 10, 12));
 
         String choice = showDialogChoice(this, new JScrollPane(area),
-                "Receipt " + booking.getReference(), JOptionPane.INFORMATION_MESSAGE,
-                "Save receipt", "Save receipt", "Print", "Back");
-        if ("Save receipt".equals(choice)) {
+                Messages.get("receipt.title") + " " + booking.getReference(), JOptionPane.INFORMATION_MESSAGE,
+                Messages.get("receipt.save"), Messages.get("receipt.save"), Messages.get("common.print"), Messages.get("common.back"));
+        if (Messages.get("receipt.save").equals(choice)) {
             saveTextToFile("receipt-" + booking.getReference() + ".txt",
-                    "Receipt " + booking.getReference(), header + receipt.toText(), "Receipt saved to ");
-        } else if ("Print".equals(choice)) {
+                    "Receipt " + booking.getReference(), header + receipt.toText(), Messages.get("receipt.savedTo") + " ");
+        } else if (Messages.get("common.print").equals(choice)) {
             printTicket("Receipt " + booking.getReference(), header + receipt.toText());
         }
     }
@@ -3300,14 +3490,14 @@ private void confirmBookingHere(StadiumEvent event) {
         ticket.setBackground(new Color(250, 252, 255));
 
         String choice = showDialogChoice(this, new JScrollPane(ticket),
-                "Ticket " + booking.getReference(), JOptionPane.INFORMATION_MESSAGE,
-                "View receipt", "View receipt", "Save as text", "Print", BACK_LABEL);
-        if ("View receipt".equals(choice)) {
+                Messages.get("ticket.title") + " " + booking.getReference(), JOptionPane.INFORMATION_MESSAGE,
+                Messages.get("ticket.viewReceipt"), Messages.get("ticket.viewReceipt"), Messages.get("ticket.saveAsText"), Messages.get("common.print"), backLabel());
+        if (Messages.get("ticket.viewReceipt").equals(choice)) {
             showReceipt(booking, payment);
-        } else if ("Save as text".equals(choice)) {
+        } else if (Messages.get("ticket.saveAsText").equals(choice)) {
             saveTextToFile("ticket-" + booking.getReference() + ".txt",
-                    "Ticket " + booking.getReference(), ticket.getText(), "Ticket saved to ");
-        } else if ("Print".equals(choice)) {
+                    "Ticket " + booking.getReference(), ticket.getText(), Messages.get("ticket.savedTo") + " ");
+        } else if (Messages.get("common.print").equals(choice)) {
             printTicket("Ticket " + booking.getReference(), ticket.getText());
         }
     }
@@ -3332,7 +3522,7 @@ private void confirmBookingHere(StadiumEvent event) {
             java.nio.file.Files.writeString(chooser.getSelectedFile().toPath(), contents);
             showStatus(statusPrefix + chooser.getSelectedFile().getName());
         } catch (java.io.IOException exception) {
-            showWarning("That could not be saved: " + exception.getMessage());
+            showWarning(Messages.get("ticket.couldNotSave") + " " + exception.getMessage());
         }
     }
 
@@ -3367,7 +3557,7 @@ private void confirmBookingHere(StadiumEvent event) {
     private void exportBookingsToCsv() {
         List<Booking> bookings = bookingService.getBookings();
         if (bookings.isEmpty()) {
-            showWarning("There are no bookings to export yet.");
+            showWarning(Messages.get("export.noneYet"));
             return;
         }
         JFileChooser chooser = new JFileChooser();
@@ -3378,10 +3568,10 @@ private void confirmBookingHere(StadiumEvent event) {
         try {
             java.nio.file.Files.writeString(chooser.getSelectedFile().toPath(),
                     TicketBuilder.csv(bookings));
-            showStatus("Exported " + bookings.size() + " bookings to "
+            showStatus(Messages.get("export.exported") + " " + bookings.size() + " bookings to "
                     + chooser.getSelectedFile().getName());
         } catch (java.io.IOException exception) {
-            showWarning("The export could not be written: " + exception.getMessage());
+            showWarning(Messages.get("export.couldNotWrite") + " " + exception.getMessage());
         }
     }
 
@@ -3406,7 +3596,7 @@ private void confirmBookingHere(StadiumEvent event) {
         contentHost.revalidate();
         contentHost.repaint();
         refreshBookings();
-        showStatus("Booking history");
+        showStatus(Messages.get("bookings.title"));
     }
 
     private void refreshBookingsIfVisible() {
@@ -3416,7 +3606,7 @@ private void confirmBookingHere(StadiumEvent event) {
     }
 
     private String bookingHistorySubtitle() {
-        return "Every reservation at " + StadiumData.getStadiums().get(0).getName()
+        return Messages.get("bookings.emptyLead") + " " + StadiumData.getStadiums().get(0).getName()
                 + ". Open one to see its seats, its charges and its receipt.";
     }
 
@@ -3490,7 +3680,7 @@ private void confirmBookingHere(StadiumEvent event) {
         JButton refresh = createSecondaryButton(text("bookings.refresh"));
         refresh.addActionListener(event -> refreshBookings());
         JButton export = createSecondaryButton(text("bookings.export"));
-        export.setToolTipText("Write every booking to a spreadsheet file");
+        export.setToolTipText(text("bookings.tip.export"));
         export.addActionListener(event -> exportBookingsToCsv());
         cancelBookingButton = createSecondaryButton(Messages.get("bookings.cancelSelected"), new Color(185, 28, 28));
         cancelBookingButton.addActionListener(event -> cancelSelectedBooking());
@@ -3557,7 +3747,7 @@ private void confirmBookingHere(StadiumEvent event) {
             Stadium stadium = StadiumData.getStadium(booking.getStadiumId());
             bookingTableModel.addRow(new Object[]{
                     booking.getReference(),
-                    stadium == null ? "Legacy venue" : stadium.getName(),
+                    stadium == null ? Messages.get("bookings.section.legacy") : stadium.getName(),
                     event == null ? booking.getEvent() : event.getHeadline(),
                     bookingWhenLabel(booking, event),
                     booking.getSeatDisplay(),
@@ -3600,7 +3790,7 @@ private void confirmBookingHere(StadiumEvent event) {
         if (booking == null) {
             // The row has gone since the table was drawn, so the detail screen
             // has nothing to show rather than showing something stale.
-            showStatus("That booking is no longer listed");
+            showStatus(Messages.get("error.bookingGone"));
             return;
         }
         final Booking found = booking;
@@ -3613,7 +3803,7 @@ private void confirmBookingHere(StadiumEvent event) {
 
         JPanel header = new JPanel(new BorderLayout(10, 0));
         header.setOpaque(false);
-        JLabel title = new JLabel("Booking " + booking.getReference());
+        JLabel title = new JLabel(text("booking.referenceTitle", booking.getReference()));
         title.setForeground(TEXT);
         title.setFont(title.getFont().deriveFont(Font.BOLD, 18f));
         header.add(title, BorderLayout.WEST);
@@ -3624,13 +3814,13 @@ private void confirmBookingHere(StadiumEvent event) {
         content.add(header);
         content.add(Box.createVerticalStrut(6));
 
-        addDetailSection(content, "BOOKING");
-        addDetailRow(content, "Reference", booking.getReference());
-        addDetailRow(content, "Status", booking.getStatus().name());
-        addDetailRow(content, "Created", CREATED_FORMATTER.format(booking.getCreatedAt()));
+        addDetailSection(content, Messages.get("bookings.section.bookingUpper"));
+        addDetailRow(content, Messages.get("bookings.table.reference"), booking.getReference());
+        addDetailRow(content, Messages.get("bookings.table.status"), booking.getStatus().name());
+        addDetailRow(content, Messages.get("bookings.table.created"), CREATED_FORMATTER.format(booking.getCreatedAt()));
 
-        addDetailSection(content, "STADIUM");
-        addDetailRow(content, "Venue", stadium == null ? "Legacy venue" : stadium.getName());
+        addDetailSection(content, Messages.get("bookings.section.venueUpper"));
+        addDetailRow(content, Messages.get("bookings.section.venue"), stadium == null ? Messages.get("bookings.section.legacy") : stadium.getName());
         addDetailRow(content, "Location", stadium == null ? "—" : stadium.getLocation());
         addDetailRow(content, "Address", stadium == null ? "—" : stadium.getAddress());
         addDetailRow(content, "Capacity", stadium == null ? "—"
@@ -3638,29 +3828,29 @@ private void confirmBookingHere(StadiumEvent event) {
 
         addDetailSection(content, "EVENT");
         addDetailRow(content, "Event", event == null ? booking.getEvent() : event.getHeadline());
-        addDetailRow(content, "Type", event == null ? "—" : event.getType().getLabel());
-        addDetailRow(content, "Details", event == null ? "—" : event.getEventDetails());
-        addDetailRow(content, "Date and time", bookingWhenLabel(booking, event));
-        addDetailRow(content, "Doors", event == null ? "—" : event.getDoorsLabel());
-        addDetailRow(content, "Booking deadline", event == null ? "—"
+        addDetailRow(content, Messages.get("facts.type"), event == null ? "—" : event.getType().getLabel());
+        addDetailRow(content, Messages.get("request.details"), event == null ? "—" : event.getEventDetails());
+        addDetailRow(content, Messages.get("event.dateAndTime"), bookingWhenLabel(booking, event));
+        addDetailRow(content, Messages.get("event.doors"), event == null ? "—" : event.getDoorsLabel());
+        addDetailRow(content, Messages.get("event.bookingDeadline"), event == null ? "—"
                 : event.getBookingDeadlineLabel());
 
         addDetailSection(content, "BOOKED BY");
-        addDetailRow(content, "Full name", booking.getCustomerName());
-        addDetailRow(content, "Email", booking.getEmail());
-        addDetailRow(content, "Phone", booking.getPhone());
+        addDetailRow(content, Messages.get("bookings.field.fullName"), booking.getCustomerName());
+        addDetailRow(content, Messages.get("bookings.field.email"), booking.getEmail());
+        addDetailRow(content, Messages.get("bookings.field.phone"), booking.getPhone());
 
         addDetailSection(content, "SEATS AND PAYMENT");
-        addDetailRow(content, "Booked seats", booking.getSeatDisplay());
-        addDetailRow(content, "Seat count", String.valueOf(booking.getSeats().size()));
+        addDetailRow(content, Messages.get("bookings.field.bookedSeats"), booking.getSeatDisplay());
+        addDetailRow(content, Messages.get("bookings.field.seatCount"), String.valueOf(booking.getSeats().size()));
         double seatSubtotal = Math.max(0.0, booking.getTotal() - BookingService.BOOKING_FEE);
         addDetailRow(content, "Seat subtotal", currency(seatSubtotal));
-        addDetailRow(content, "Booking fee", currency(BookingService.BOOKING_FEE));
-        addDetailRow(content, "Total charged", currency(booking.getTotal()));
+        addDetailRow(content, Messages.get("bookings.field.bookingFee"), currency(BookingService.BOOKING_FEE));
+        addDetailRow(content, Messages.get("bookings.field.totalCharged"), currency(booking.getTotal()));
 
         // The itemised receipt, one screen down, so a past booking can be
         // billed again without the customer having to remember a reference.
-        JButton receiptButton = createPrimaryButton("View itemised receipt");
+        JButton receiptButton = createPrimaryButton(text("booking.viewReceipt"));
         receiptButton.addActionListener(ignored -> showReceipt(found, null));
         JPanel receiptRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 4));
         receiptRow.setOpaque(false);
@@ -3672,8 +3862,8 @@ private void confirmBookingHere(StadiumEvent event) {
         scroll.setBorder(BorderFactory.createEmptyBorder());
         scroll.getViewport().setBackground(WHITE);
         scroll.setPreferredSize(new Dimension(650, 620));
-        showDialogChoice(this, scroll, "Complete booking details",
-                JOptionPane.INFORMATION_MESSAGE, BACK_LABEL, BACK_LABEL);
+        showDialogChoice(this, scroll, Messages.get("bookings.completeDetails"),
+                JOptionPane.INFORMATION_MESSAGE, backLabel(), backLabel());
     }
 
     private void addDetailSection(JPanel parent, String title) {
@@ -3712,20 +3902,20 @@ private void confirmBookingHere(StadiumEvent event) {
     private void cancelSelectedBooking() {
         int row = bookingTable.getSelectedRow();
         if (row < 0) {
-            showWarning("Select a booking from the table first.");
+            showWarning(Messages.get("bookings.selectFirst"));
             return;
         }
         String reference = String.valueOf(bookingTableModel.getValueAt(row, 0));
         String status = String.valueOf(bookingTableModel.getValueAt(row, 6));
         if ("CANCELLED".equals(status)) {
-            showWarning("That booking is already cancelled.");
+            showWarning(Messages.get("bookings.alreadyCancelled"));
             return;
         }
         String choice = showDialogChoice(this,
                 "Cancel booking " + reference + "?\n\nThe seats will become available again.",
-                "Cancel booking", JOptionPane.WARNING_MESSAGE,
-                "Cancel booking", BACK_LABEL, "Cancel booking");
-        if (!"Cancel booking".equals(choice)) {
+                Messages.get("bookings.cancelTitle"), JOptionPane.WARNING_MESSAGE,
+                Messages.get("bookings.cancelTitle"), backLabel(), Messages.get("bookings.cancelTitle"));
+        if (!Messages.get("bookings.cancelTitle").equals(choice)) {
             return;
         }
         if (bookingService.cancel(reference)) {
@@ -3734,7 +3924,7 @@ private void confirmBookingHere(StadiumEvent event) {
             updateBookingSummary();
             showStatus("Booking " + reference + " cancelled");
         } else {
-            showWarning("The booking could not be cancelled.");
+            showWarning(Messages.get("bookings.couldNotCancel"));
         }
     }
 
@@ -3754,7 +3944,7 @@ private void confirmBookingHere(StadiumEvent event) {
         contentHost.add(buildOccupancyContent(), BorderLayout.CENTER);
         contentHost.revalidate();
         contentHost.repaint();
-        showStatus("Occupancy report");
+        showStatus(Messages.get("occupancy.title"));
     }
 
     private JPanel buildOccupancyContent() {
@@ -3792,8 +3982,8 @@ private void confirmBookingHere(StadiumEvent event) {
                 BorderFactory.createLineBorder(BORDER), new EmptyBorder(14, 14, 14, 14)));
 
         DefaultTableModel model = new DefaultTableModel(
-                new Object[]{"Event", "Type", "Date", "Seats on sale", "Seats booked",
-                        "Vacancy", "End A", "End B", "End C", "End D"}, 0) {
+                new Object[]{"Event", Messages.get("facts.type"), Messages.get("event.date"), Messages.get("facts.seatsOnSale"), Messages.get("occupancy.seatsBooked"),
+                        Messages.get("occupancy.vacancy"), "End A", "End B", "End C", "End D"}, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
                 return false;
@@ -3898,9 +4088,9 @@ private void confirmBookingHere(StadiumEvent event) {
         }
         try {
             java.nio.file.Files.writeString(chooser.getSelectedFile().toPath(), sheet.toString());
-            showStatus("Occupancy report saved to " + chooser.getSelectedFile().getName());
+            showStatus(Messages.get("occupancy.savedTo") + " " + chooser.getSelectedFile().getName());
         } catch (java.io.IOException exception) {
-            showWarning("The report could not be saved: " + exception.getMessage());
+            showWarning(Messages.get("occupancy.couldNotSave") + " " + exception.getMessage());
         }
     }
 
@@ -3927,7 +4117,7 @@ private void confirmBookingHere(StadiumEvent event) {
         selectLedgerStadium(target);
         selectLedgerEvent(targetEvent);
         refreshSeatLedger();
-        showStatus("Booked seats");
+        showStatus(Messages.get("bookings.field.bookedSeats"));
     }
 
     private StadiumEvent firstEventFor(Stadium stadium) {
@@ -4020,8 +4210,8 @@ private void confirmBookingHere(StadiumEvent event) {
         page.add(north, BorderLayout.NORTH);
 
         ledgerTableModel = new DefaultTableModel(
-                new Object[]{"Seat", "Section", "Row", "Number", "Price tier", "Price",
-                        "Reference", "Booked by", "Booked on"}, 0) {
+                new Object[]{"Seat", Messages.get("ledger.section"), "Row", Messages.get("ledger.number"), Messages.get("ledger.priceTier"), Messages.get("ledger.price"),
+                        Messages.get("bookings.table.reference"), Messages.get("ledger.bookedBy"), Messages.get("ledger.bookedOn")}, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
                 return false;
@@ -4227,7 +4417,7 @@ private void confirmBookingHere(StadiumEvent event) {
 
     private JPanel buildSearchBar(JTextField field, String hint) {
         styleSearchField(field);
-        describe(field, "Search", "Type to search. Use the arrow keys and Enter to choose a suggestion.");
+        describe(field, Messages.get("search.bookingTitleHint"), "Type to search. Use the arrow keys and Enter to choose a suggestion.");
         if (field instanceof SearchField) {
             ((SearchField) field).setHint(hint);
         }
@@ -4253,17 +4443,25 @@ private void confirmBookingHere(StadiumEvent event) {
         field.setPreferredSize(new Dimension(220, 30));
     }
 
-    private String describeField(String labelText) {
-        switch (labelText) {
-            case "Name":
-                return "Full name of the person booking, at least two characters";
-            case "Email":
-                return "Email address used for the booking";
-            case "Phone":
-                return "Phone number, digits, spaces and an optional leading plus";
-            default:
-                return null;
+    /**
+     * The longer description for a contact field, given its label.
+     *
+     * <p>Matched on the field name rather than the visible label, because the
+     * label changes with the language and a switch on it would stop matching —
+     * and a switch on a translated string is not allowed anyway, since Java
+     * needs a constant there.
+     */
+    private String describeField(String fieldName) {
+        if ("nameField".equals(fieldName)) {
+            return Messages.get("form.hintName");
         }
+        if ("emailField".equals(fieldName)) {
+            return Messages.get("form.hintEmail");
+        }
+        if ("phoneField".equals(fieldName)) {
+            return Messages.get("form.hintPhone");
+        }
+        return null;
     }
 
     /** Gives a field a label a screen reader can announce. */
@@ -4532,12 +4730,12 @@ private void confirmBookingHere(StadiumEvent event) {
     }
 
     private void showStatus(String message) {
-        statusValue.setText(message == null || message.trim().isEmpty() ? "Ready" : message);
+        statusValue.setText(message == null || message.trim().isEmpty() ? Messages.get("status.ready") : message);
     }
 
     private void showWarning(String message) {
-        showDialogChoice(this, message, "Please check your booking",
-                JOptionPane.WARNING_MESSAGE, BACK_LABEL, BACK_LABEL);
+        showDialogChoice(this, message, Messages.get("status.checkBooking"),
+                JOptionPane.WARNING_MESSAGE, backLabel(), backLabel());
     }
 
     private String joinSeatNames(List<Seat> seats) {
@@ -4704,8 +4902,8 @@ private void confirmBookingHere(StadiumEvent event) {
         private void refresh() {
             List<Suggestion> suggestions = source.apply(field.getText());
             if (suggestions.isEmpty()) {
-                suggestions = List.of(new Suggestion("No matches",
-                        "Try a different word", null));
+                suggestions = List.of(new Suggestion(Messages.get("search.noMatches"),
+                        Messages.get("search.tryDifferentWord"), null));
             }
             if (suggestions.size() > MAX_ROWS) {
                 suggestions = new ArrayList<>(suggestions.subList(0, MAX_ROWS));
@@ -4816,13 +5014,13 @@ private void confirmBookingHere(StadiumEvent event) {
         }
         // Teams and artists hosted at the venue are useful shortcuts too.
         for (String name : distinctTeamsAndArtists(q)) {
-            suggestions.add(new Suggestion(name, "Team or artist appearing at a venue", name));
+            suggestions.add(new Suggestion(name, Messages.get("schedules.teamOrArtistHint"), name));
         }
         if (suggestions.isEmpty()) {
             return suggestions;
         }
         suggestions.add(new Suggestion(venues + (venues == 1 ? " venue matches" : " venues match"),
-                "Press Enter to see the full list", null));
+                Messages.get("schedules.enterForList"), null));
         return suggestions;
     }
 
@@ -4848,14 +5046,14 @@ private void confirmBookingHere(StadiumEvent event) {
         }
         if (!q.isEmpty()) {
             for (String name : distinctTeamsAndArtists(q)) {
-                suggestions.add(new Suggestion(name, "Team or artist", name));
+                suggestions.add(new Suggestion(name, Messages.get("schedules.teamOrArtist"), name));
             }
         }
         if (suggestions.isEmpty()) {
             return suggestions;
         }
         suggestions.add(new Suggestion(matches + (matches == 1 ? " event matches" : " events match"),
-                "Press Enter to see the full list", null));
+                Messages.get("schedules.enterForList"), null));
         return suggestions;
     }
 
@@ -4878,7 +5076,7 @@ private void confirmBookingHere(StadiumEvent event) {
             return suggestions;
         }
         suggestions.add(new Suggestion(matches + (matches == 1 ? " booking matches" : " bookings match"),
-                "Press Enter to see the full list", null));
+                Messages.get("schedules.enterForList"), null));
         return suggestions;
     }
 
@@ -5041,13 +5239,14 @@ private void confirmBookingHere(StadiumEvent event) {
             return;
         }
         boolean dark = Theme.isDark();
-        darkModeButton.setText(dark ? "\u263D  Dark" : "\u263E  Light");
-        darkModeButton.setToolTipText(dark
-                ? "Switch to the light theme"
-                : "Switch to the dark theme");
+        darkModeButton.setText(dark ? "\u263D  " + Messages.get("theme.darkWord")
+                : "\u263E  " + Messages.get("theme.lightWord"));
+        darkModeButton.setToolTipText(dark ? Messages.get("theme.switchToLight")
+                : Messages.get("theme.switchToDark"));
+        darkModeButton.getAccessibleContext().setAccessibleName(Messages.get("theme.darkName"));
         darkModeButton.getAccessibleContext().setAccessibleDescription(
-                dark ? "Currently the dark theme. Activate for the light theme."
-                        : "Currently the light theme. Activate for the dark theme.");
+                dark ? Messages.get("theme.currentlyDark")
+                        : Messages.get("theme.currentlyLight"));
     }
 
     /**

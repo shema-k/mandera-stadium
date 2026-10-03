@@ -35,11 +35,18 @@ final class LocaleTest {
             assertEquals("Vimeuzwa", Messages.get("legend.booked"), "booked legend");
         });
 
-        test("an untranslated key falls back to English", () -> {
+        test("the app's own name follows the language too", () -> {
+            // The header carries the application name. It used to be left in
+            // English on the theory that a product name is not translated, but
+            // the whole interface is expected to follow the language, so the
+            // name is translated with everything else and checked here.
             Messages.setLanguage(Messages.Language.SWAHILI);
-            // app.tagline is only defined in English so far.
+            assertFalse("NAMBOOLE SEAT BOOKING".equals(Messages.get("app.tagline")),
+                    "the app name must follow the selected language");
+            assertFalse(Messages.get("app.tagline").isBlank(), "the app name must not be blank");
+            Messages.setLanguage(Messages.Language.ENGLISH);
             assertEquals("NAMBOOLE SEAT BOOKING", Messages.get("app.tagline"),
-                    "falls back to English rather than showing a key");
+                    "English still shows the English name");
         });
 
         test("an unknown key is shown rather than blank", () -> {
@@ -95,7 +102,11 @@ final class LocaleTest {
             for (String key : keys) {
                 for (Messages.Language language : Messages.Language.values()) {
                     Messages.setLanguage(language);
-                    String wording = Messages.get(key);
+                    // Rendered, not raw: some wording takes a number, such as the
+                    // seat limit, and what the customer reads has no placeholder
+                    // in it. Checking the template would either forbid the number
+                    // being passed in or wave through a broken one.
+                    String wording = Messages.get(key, 7, 7, 7, 7, 7, 7, 7, 7);
                     checked++;
                     assertFalse(wording.matches(".*[\\u2E80-\\u9FFF\\u0400-\\u04FF].*"),
                             "stray characters in \"" + key + "\" for " + language
@@ -114,11 +125,55 @@ final class LocaleTest {
             // ever drift apart the screen is either lying or under-stating, so
             // the wording is checked against the constant rather than eyeballed.
             Messages.setLanguage(Messages.Language.ENGLISH);
-            String hint = Messages.get("booking.limitHint");
+            String hint = Messages.get("booking.limitHint",
+                    BookingService.MAX_SEATS_PER_BOOKING);
             assertTrue(hint.contains(String.valueOf(BookingService.MAX_SEATS_PER_BOOKING)),
                     "the hint must quote the real limit (" + BookingService.MAX_SEATS_PER_BOOKING
                             + "), said: " + hint);
             assertFalse(hint.contains(" 6 "), "must not still say six: " + hint);
+            assertFalse(hint.contains("{0}"),
+                    "the number must be substituted, not left as a placeholder: " + hint);
+        });
+
+        test("the seat limit on screen survives the limit being changed", () -> {
+            // The wording used to carry a typed-in "20". Raising the constant then
+            // left the screen promising the old cap while the code enforced the
+            // new one, and nothing caught it except this test. Now the number
+            // comes from the constant, so there is nothing left to fall out of
+            // step — checked here by confirming no language carries its own copy.
+            for (Messages.Language language : Messages.Language.values()) {
+                Messages.setLanguage(language);
+                String raw = Messages.get("booking.limitHint");
+                assertTrue(raw.contains("{0}"),
+                        language + " must take the limit from the constant rather than "
+                                + "wording its own, said: " + raw);
+                String filled = Messages.get("booking.limitHint",
+                        BookingService.MAX_SEATS_PER_BOOKING);
+                assertFalse(filled.contains("{0}"),
+                        language + " must show the real number, said: " + filled);
+                assertTrue(filled.contains(String.valueOf(BookingService.MAX_SEATS_PER_BOOKING)),
+                        language + " must quote " + BookingService.MAX_SEATS_PER_BOOKING
+                                + ", said: " + filled);
+            }
+            Messages.setLanguage(Messages.Language.ENGLISH);
+        });
+
+        test("every key is translated in every language", () -> {
+            // The requirement this enforces: switching language must translate
+            // the whole interface. A key that exists only in English falls back
+            // silently, which is how parts of the screen used to stay English.
+            // There are no exceptions: even the application's own name follows
+            // the language, so every key must carry all three translations.
+            java.util.List<String> missing = new java.util.ArrayList<>();
+            for (String key : Messages.keys()) {
+                for (Messages.Language language : Messages.Language.values()) {
+                    if (!Messages.has(language, key)) {
+                        missing.add(language.getCode() + ":" + key);
+                    }
+                }
+            }
+            assertTrue(missing.isEmpty(),
+                    "these keys would fall back to English: " + missing);
         });
 
         test("switching language back to English restores the wording", () -> {
