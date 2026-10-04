@@ -122,6 +122,13 @@ final class SeatMapPanel extends JPanel {
     private final Set<SeatKey> bookedSeats = new LinkedHashSet<>();
     private final Map<String, SeatCanvas> canvases = new LinkedHashMap<>();
     private final JTabbedPane sectionTabs = new JTabbedPane();
+    /**
+     * The ends in the order the tabs show them.
+     *
+     * <p>Held so a language change can rename the tabs. The end names are venue
+     * data rather than keys, so nothing else knows which tab is which.
+     */
+    private final List<SeatSection> sectionTabSections = new ArrayList<>();
     private final JLabel vacancyValue = new JLabel();
     private final JLabel lastSeatValue = new JLabel(Messages.get("seatMap.priceGuide"));
     private JLabel seatMapTitle;
@@ -343,7 +350,8 @@ final class SeatMapPanel extends JPanel {
                 : selectedSeats.contains(key) ? "selected" : "vacant";
         String text = String.format(Locale.US,
                 "Section %s %s, row %d, seat %d, %s, %s",
-                section.getId(), section.getLabel(), keyboardRow, keyboardNumber, state,
+                section.getId(), VenueWords.sectionName(section.getId(), section.getLabel()),
+                keyboardRow, keyboardNumber, state,
                 currency(seat.getPrice()));
         lastSeatValue.setText(text);
         if (messageListener != null) {
@@ -434,6 +442,18 @@ final class SeatMapPanel extends JPanel {
         if (hintLabel != null) {
             hintLabel.setText(Messages.get("seatMap.hint"));
         }
+        // The end names come from the venue data, so they are not keys and are
+        // not covered by the loop above. The tabs carry them, which is why a
+        // language switch used to leave "VIP Box" and "Main Stand" in English
+        // above a screen that was otherwise in Luganda.
+        if (sectionTabs != null && sectionTabSections != null) {
+            for (int index = 0; index < sectionTabSections.size()
+                    && index < sectionTabs.getTabCount(); index++) {
+                SeatSection section = sectionTabSections.get(index);
+                sectionTabs.setTitleAt(index, section.getId() + "  •  "
+                        + VenueWords.sectionName(section.getId(), section.getLabel()));
+            }
+        }
         revalidate();
         repaint();
     }
@@ -476,6 +496,7 @@ final class SeatMapPanel extends JPanel {
 
     private void rebuildCanvases(Stadium stadium) {
         sectionTabs.removeAll();
+        sectionTabSections.clear();
         canvases.clear();
         StadiumShape shape = stadium.getShape();
         for (SeatSection section : stadium.getSections()) {
@@ -496,7 +517,9 @@ final class SeatMapPanel extends JPanel {
                     Math.min(canvas.getPreferredSize().width, 700), visibleHeight));
             scroll.setMaximumSize(new Dimension(Integer.MAX_VALUE,
                     visibleHeight + 30));
-            sectionTabs.addTab(section.getId() + "  •  " + section.getLabel(), scroll);
+            sectionTabs.addTab(section.getId() + "  •  "
+                    + VenueWords.sectionName(section.getId(), section.getLabel()), scroll);
+            sectionTabSections.add(section);
         }
         sectionTabs.setSelectedIndex(0);
         sectionTabs.revalidate();
@@ -767,7 +790,7 @@ final class SeatMapPanel extends JPanel {
             front = Math.min(front, bookingService.getSeatPrice(section, 1));
             back = Math.min(back, bookingService.getSeatPrice(section, section.getRows()));
         }
-        return String.format(Locale.US, "Front from %s  •  Back from %s", currency(front), currency(back));
+        return Messages.get("seatMap.frontFrom", currency(front), currency(back));
     }
 
     private String currency(double value) {
@@ -903,7 +926,8 @@ final class SeatMapPanel extends JPanel {
 
             g.setColor(new Color(100, 116, 139));
             g.setFont(getFont().deriveFont(Font.BOLD, 9f));
-            g.drawString(section.getId() + "  " + section.getLabel(), 12, 14);
+            g.drawString(section.getId() + "  "
+                    + VenueWords.sectionName(section.getId(), section.getLabel()), 12, 14);
             g.setFont(getFont().deriveFont(Font.PLAIN, 7f));
             g.drawString(Messages.get("seatMap.frontPremium"), 12, 25);
             String middleTier = Messages.get("seatMap.middleStandard");

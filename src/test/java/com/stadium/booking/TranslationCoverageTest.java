@@ -52,10 +52,8 @@ final class TranslationCoverageTest {
     }
 
     /** The keys the screens actually ask for. */
-    private static Set<String> keysUsedInScreens() {
-        Set<String> used = new LinkedHashSet<>();
-        used.addAll(ScreenWording.keysInMainSources());
-        return used;
+    private static List<String> keysUsedInScreens() {
+        return ScreenWording.keysInMainSources();
     }
 
     static void register() {
@@ -148,6 +146,34 @@ final class TranslationCoverageTest {
             assertTrue(ScreenWording.screensRedrawnOnLanguageChange().size() >= 8,
                     "every screen must be redrawn when the language changes, found: "
                             + ScreenWording.screensRedrawnOnLanguageChange());
+        });
+
+        test("a language switch renames the long-lived widgets too", () -> {
+            // The redraw covers the screens, but three things are built once when
+            // the application opens and no screen redraw reaches: the search boxes
+            // and their placeholder text, the status line, and the seat map's tabs.
+            // The tabs are the one that gave it away on screen — they are named
+            // from the venue data, so "VIP Box" and "Main Stand" stayed in English
+            // above a screen that was otherwise in Luganda.
+            List<String> renamed = ScreenWording.widgetsRenamedOnLanguageChange();
+            for (String widget : new String[]{"eventSearchField", "bookingSearchField",
+                    "liveSearchField", "statusValue", "sectionTabs"}) {
+                assertTrue(renamed.contains(widget),
+                        widget + " is built once, so a language switch has to rename it "
+                                + "by hand; nothing currently does. Renamed today: "
+                                + renamed);
+            }
+        });
+
+        test("nothing named from the venue data is left out of the switch", () -> {
+            // The general fault behind the tabs: wording that comes from data
+            // rather than from the table, on a widget built once, is missed by
+            // anything that checks the table. Read from the source so removing the
+            // renaming fails here rather than only on a screen.
+            List<String> missed = ScreenWording.dataNamedTabsWithoutRenaming();
+            assertTrue(missed.isEmpty(),
+                    "these are named from the data and built once, so nothing "
+                            + "renames them when the language changes: " + missed);
         });
 
         test("the wording table holds no English left in a translation", () -> {

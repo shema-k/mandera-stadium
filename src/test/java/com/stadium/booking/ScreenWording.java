@@ -1,16 +1,16 @@
 package com.stadium.booking;
 
+import static com.stadium.booking.TestRunner.assertTrue;
+import static com.stadium.booking.TestRunner.suite;
+import static com.stadium.booking.TestRunner.test;
+
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Reads the screen sources so the translation checks have something to look at.
+ * Reads the screen sources, so the translation checks have something to look at.
  *
  * <p>Two kinds of fact can only be had by reading the code, and neither is
  * visible from the running application:
@@ -18,8 +18,9 @@ import java.util.regex.Pattern;
  * <ul>
  *   <li>Which keys the screens ask for. Asking the running application would
  *       find the keys on the screen the tests happened to reach.
- *   <li>Whether a screen is redrawn when the language changes. That is a
- *       property of the code path, not of any wording.
+ *   <li>Whether a screen is redrawn when the language changes, and whether a
+ *       long-lived widget is renamed. That is a property of the code path, not of
+ *       any wording.
  * </ul>
  *
  * <p>Kept apart from the tests themselves so the tests read as assertions about
@@ -35,10 +36,10 @@ final class ScreenWording {
             "booking", "bookings", "seats", "occupancy", "saved-seats"};
 
     /** The files a customer can read wording out of. */
-    private static final List<String> SOURCES = Arrays.asList(
+    private static final List<String> SOURCES = List.of(
             "StadiumBookingApp.java", "SeatMapPanel.java", "DetailsFormPanel.java",
             "Receipt.java", "TicketBuilder.java", "StadiumPhotoPanel.java",
-            "OccupancyReport.java", "BookingService.java");
+            "OccupancyReport.java", "BookingService.java", "VenueWords.java");
 
     /** A call to the wording table, capturing the key and what follows it. */
     private static final Pattern CALL = Pattern.compile(
@@ -55,8 +56,8 @@ final class ScreenWording {
     }
 
     /** Every key the screens ask for, in the order first seen. */
-    static Set<String> keysInMainSources() {
-        return new LinkedHashSet<>(allKeyUses(false));
+    static List<String> keysInMainSources() {
+        return allKeyUses(false);
     }
 
     /**
@@ -110,8 +111,8 @@ final class ScreenWording {
     }
 
     /** The screens {@code applyLanguage} rebuilds. */
-    static Set<String> screensRedrawnOnLanguageChange() {
-        Set<String> found = new LinkedHashSet<>();
+    static java.util.Set<String> screensRedrawnOnLanguageChange() {
+        java.util.Set<String> found = new java.util.LinkedHashSet<>();
         String code = source("StadiumBookingApp.java");
         int start = code.indexOf("private void redrawCurrentScreen()");
         if (start < 0) {
@@ -126,8 +127,63 @@ final class ScreenWording {
         return found;
     }
 
+    /**
+     * Widgets that a language switch has to rename by hand.
+     *
+     * <p>Long-lived components are built once, when the application opens, so the
+     * redraw of a screen cannot reach them. Three kinds were missed: the search
+     * boxes and their placeholder text, the status line, and the seat map's tabs.
+     * The tabs are the interesting one, because their names come from the venue
+     * data and are not keys at all — so nothing in the wording table could have
+     * told anyone they needed renaming.
+     *
+     * <p>Read from the body of {@code applyLanguage} and {@code retranslate}, so
+     * removing the renaming fails here rather than only on screen.
+     */
+    static List<String> widgetsRenamedOnLanguageChange() {
+        List<String> renamed = new ArrayList<>();
+        String app = source("StadiumBookingApp.java");
+        int start = app.indexOf("private void applyLanguage()");
+        int end = app.indexOf("\n    private ", start + 10);
+        String body = end < 0 ? app.substring(start) : app.substring(start, end);
+        Matcher matcher = Pattern.compile("(\\w+)\\.(setHint|setText|setTitle)\\(")
+                .matcher(body);
+        while (matcher.find()) {
+            renamed.add(matcher.group(1));
+        }
+        String map = source("SeatMapPanel.java");
+        int mapStart = map.indexOf("void retranslate()");
+        int mapEnd = map.indexOf("\n    private ", mapStart + 10);
+        String mapBody = mapEnd < 0 ? map.substring(mapStart)
+                : map.substring(mapStart, mapEnd);
+        if (mapBody.contains("setTitleAt")) {
+            renamed.add("sectionTabs");
+        }
+        return renamed;
+    }
+
+    /**
+     * Widgets built once, named from the venue data, that no switch renames.
+     *
+     * <p>The seat map tabs are the case. They are named from the end names in the
+     * data, so they are not keys, and they are built once, so a switch does not
+     * rebuild them. Both faults together leave "VIP Box" in English above a
+     * screen in Luganda.
+     */
+    static List<String> dataNamedTabsWithoutRenaming() {
+        List<String> missing = new ArrayList<>();
+        String map = source("SeatMapPanel.java");
+        boolean tabsAreDataNamed = map.contains("addTab(")
+                && map.contains("section.getLabel()");
+        boolean renamedOnSwitch = widgetsRenamedOnLanguageChange().contains("sectionTabs");
+        if (tabsAreDataNamed && !renamedOnSwitch) {
+            missing.add("sectionTabs");
+        }
+        return missing;
+    }
+
     /** Screen keys that some language does not define. */
-    static List<String> keysMissingFromAnyLanguage(Set<String> keys) {
+    static List<String> keysMissingFromAnyLanguage(List<String> keys) {
         List<String> gaps = new ArrayList<>();
         for (String key : keys) {
             for (Messages.Language language : Messages.Language.values()) {
@@ -142,7 +198,7 @@ final class ScreenWording {
     /** Every key in the table that some language does not define. */
     static List<String> allKeysMissingFromAnyLanguage() {
         List<String> gaps = new ArrayList<>();
-        for (Map.Entry<String, Map<Messages.Language, String>> row
+        for (java.util.Map.Entry<String, java.util.Map<Messages.Language, String>> row
                 : Messages.allWording().entrySet()) {
             for (Messages.Language language : Messages.Language.values()) {
                 if (!row.getValue().containsKey(language)) {
@@ -163,9 +219,9 @@ final class ScreenWording {
      */
     static List<String> keysIdenticalInAllLanguages() {
         List<String> identical = new ArrayList<>();
-        for (Map.Entry<String, Map<Messages.Language, String>> row
+        for (java.util.Map.Entry<String, java.util.Map<Messages.Language, String>> row
                 : Messages.allWording().entrySet()) {
-            Map<Messages.Language, String> byLanguage = row.getValue();
+            java.util.Map<Messages.Language, String> byLanguage = row.getValue();
             Messages.Language first = null;
             String value = null;
             boolean same = true;
@@ -192,9 +248,9 @@ final class ScreenWording {
     }
 
     /** Translations that are a byte-for-byte copy of the English. */
-    static Map<String, String> translationsCopiedFromEnglish() {
-        Map<String, String> copied = new java.util.TreeMap<>();
-        for (Map.Entry<String, Map<Messages.Language, String>> row
+    static java.util.Map<String, String> translationsCopiedFromEnglish() {
+        java.util.Map<String, String> copied = new java.util.TreeMap<>();
+        for (java.util.Map.Entry<String, java.util.Map<Messages.Language, String>> row
                 : Messages.allWording().entrySet()) {
             String english = row.getValue().get(Messages.Language.ENGLISH);
             if (english == null) {

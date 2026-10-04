@@ -102,6 +102,8 @@ public final class TestRunner {
         BookingToolsTest.register();
         LocaleTest.register();
         TranslationCoverageTest.register();
+        VenueWordsTest.register();
+        SeatMapRetranslationTest.register();
         OccupancyReportTest.register();
         KeyboardSeatSelectionTest.register();
                 StadiumDetailsTest.register();

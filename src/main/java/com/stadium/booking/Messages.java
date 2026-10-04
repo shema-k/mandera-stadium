@@ -334,7 +334,7 @@ public final class Messages {
                 "Lulambula amabirali, keka ebbaliwo, era yatandika ebizitansa nga bwe kisobola.");
         put(Language.LUGANDA, "directory.venuesAvailable", "Amabirali {0} awo aliwo");
         put(Language.LUGANDA, "directory.venuesMatching", "Amabirali {0} agasobola n'okunoonya");
-        put(Language.LUGANDA, "stadium.upcoming", "Enteekateeka ezijja mu maaso");
+        put(Language.LUGANDA, "stadium.upcoming", "Ebiro nga biri");
         put(Language.LUGANDA, "stadium.search.hint",
                 "Shunja ekizibuBy'obujjuni, omusani, sport n'obudde");
         put(Language.LUGANDA, "stadium.notices", "Ebikwata n'okusaba");
@@ -506,6 +506,40 @@ public final class Messages {
         put(Language.SWAHILI, "app.languageDescription",
                 "Chagua English, Luganda au Kiswahili. Skrini nzima hubadilika mara moja.");
         put(Language.SWAHILI, "seatMap.priceGuide", "Bei zinashuka kutoka mbele hadi nyuma");
+        put(Language.ENGLISH, "event.vacantWord", "vacant");
+
+        // The four ends of the stand, and the kinds of event. These come from the
+        // venue data, so without them the seat map tabs and the event badges read
+        // in English on a screen that is otherwise in Luganda or Kiswahili.
+        put(Language.ENGLISH, "section.A", "VIP Box");
+        put(Language.LUGANDA, "section.A", "Buvunnyi bw'Abatala");
+        put(Language.SWAHILI, "section.A", "Kifungu cha VIP");
+        put(Language.ENGLISH, "section.B", "Main Stand");
+        put(Language.LUGANDA, "section.B", "Empaano Enkulu");
+        put(Language.SWAHILI, "section.B", "Uwanja Mkuu");
+        put(Language.ENGLISH, "section.C", "Terrace");
+        put(Language.LUGANDA, "section.C", "Olw'Okwesereza");
+        put(Language.SWAHILI, "section.C", "Terasi");
+        put(Language.ENGLISH, "section.D", "Kampala End");
+        put(Language.LUGANDA, "section.D", "Endi ya Kampala");
+        put(Language.SWAHILI, "section.D", "Upande wa Kampala");
+        put(Language.ENGLISH, "eventType.GAME", "Game");
+        put(Language.LUGANDA, "eventType.GAME", "Emizibiso");
+        put(Language.SWAHILI, "eventType.GAME", "Michezo");
+        put(Language.ENGLISH, "eventType.CONCERT", "Concert");
+        put(Language.LUGANDA, "eventType.CONCERT", "Emuzeemu");
+        put(Language.SWAHILI, "eventType.CONCERT", "Tamasha");
+        put(Language.ENGLISH, "shape.oval", "Continuous bowl");
+        put(Language.LUGANDA, "shape.oval", "Ekizimbe eky'olukalu");
+        put(Language.SWAHILI, "shape.oval", "Bazi la mzunguko");
+        put(Language.ENGLISH, "shape.box", "Four straight stands");
+        put(Language.LUGANDA, "shape.box", "Nsengwe nna ezikwata");
+        put(Language.SWAHILI, "shape.box", "Pande nne za moja kwa moja");
+        put(Language.ENGLISH, "shape.stadium", "stadium");
+        put(Language.LUGANDA, "shape.stadium", "ekizimbe");
+        put(Language.SWAHILI, "shape.stadium", "uwanja");
+        put(Language.LUGANDA, "event.vacantWord", "bwe muganda");
+        put(Language.SWAHILI, "event.vacantWord", "hazitoshiwi");
 
         // Keys the English screen gained later, translated so switching language
         // never leaves part of the screen reading in English.
@@ -657,35 +691,41 @@ public final class Messages {
     }
 
     /**
-     * Every key defined, with the wording each language gives it.
+     * Whether this language really carries this wording.
      *
-     * <p>Exposed so the wording table can be checked rather than trusted. The
-     * runtime fallback in {@link #get(String)} is deliberate — a missing
-     * translation shows English rather than a blank — but it also means an
-     * untranslated screen looks perfectly healthy while running, and nothing
-     * would ever say so. These accessors let a test ask the table directly.
+     * <p>{@link #get} falls back to English when a key is missing, which is right
+     * at runtime and hides the fault: a screen left in English after a switch looks
+     * the same as one that was translated. So the translation checks ask this
+     * instead, and see the table as it actually stands.
+     */
+    public static boolean isDefined(Language language, String key) {
+        if (language == null || key == null) {
+            return false;
+        }
+        Map<String, String> table = TEXT.get(language);
+        return table != null && table.containsKey(key);
+    }
+
+    /**
+     * Every key in the table, with whatever each language has for it.
      *
-     * @return key to language to wording, in the order the keys were defined
+     * <p>Lets the checks compare languages directly. A key absent from a language
+     * is simply absent from its row rather than filled in from English, so the gap
+     * is visible instead of hidden.
      */
     public static Map<String, Map<Language, String>> allWording() {
-        Map<String, Map<Language, String>> table = new LinkedHashMap<>();
+        Map<String, Map<Language, String>> all = new LinkedHashMap<>();
         for (Language language : Language.values()) {
-            Map<String, String> byKey = TEXT.get(language);
-            if (byKey == null) {
+            Map<String, String> table = TEXT.get(language);
+            if (table == null) {
                 continue;
             }
-            for (Map.Entry<String, String> entry : byKey.entrySet()) {
-                table.computeIfAbsent(entry.getKey(), ignored -> new LinkedHashMap<>())
+            for (Map.Entry<String, String> entry : table.entrySet()) {
+                all.computeIfAbsent(entry.getKey(), ignored -> new LinkedHashMap<>())
                         .put(language, entry.getValue());
             }
         }
-        return table;
-    }
-
-    /** The keys defined for one language, for a check that a key was translated. */
-    public static boolean isDefined(Language language, String key) {
-        Map<String, String> byKey = TEXT.get(language);
-        return byKey != null && byKey.containsKey(key);
+        return all;
     }
 
     /** Shillings are always written as UGX so a translated screen still reads clearly. */
@@ -820,7 +860,7 @@ public final class Messages {
         put(Language.ENGLISH, "seatMap.keySpace",
                 "SPACE");
         put(Language.ENGLISH, "seatMap.seatDesc",
-                "Section %s %s, row %d, seat %d, %s, %s");
+                "Section {0} {1}, row {2}, seat {3}, {4}, {5}");
         put(Language.ENGLISH, "seatMap.seat",
                 "Seat");
         put(Language.ENGLISH, "seatMap.is",
@@ -848,7 +888,7 @@ public final class Messages {
         put(Language.ENGLISH, "seatMap.pricesFall",
                 "Prices fall from front to back");
         put(Language.ENGLISH, "seatMap.frontFrom",
-                "Front from %s  •  Back from");
+                "Front from {0}  •  Back from");
         put(Language.ENGLISH, "seatMap.name",
                 "Seat map, section");
         put(Language.ENGLISH, "seatMap.nameHint",
@@ -914,7 +954,7 @@ public final class Messages {
         put(Language.ENGLISH, "event.vacantShort",
                 "of seats vacant");
         put(Language.ENGLISH, "event.seatsAndPrice",
-                "•  %s seats");
+                "•  {0} seats");
         put(Language.ENGLISH, "event.beginsNow",
                 "Booking opens now");
         put(Language.ENGLISH, "event.dateTimeLine",
@@ -924,7 +964,7 @@ public final class Messages {
         put(Language.ENGLISH, "event.selectFirst",
                 "Choose a date and event, then pick your seats at ");
         put(Language.ENGLISH, "booking.confirmSeats",
-                "Confirm");
+                "Confirm ");
         put(Language.ENGLISH, "booking.needSeatToConfirm",
                 "Choose at least one seat before confirming.");
         put(Language.ENGLISH, "booking.continue",
@@ -994,7 +1034,7 @@ public final class Messages {
         put(Language.ENGLISH, "booking.savedSeatWord",
                 "saved seat");
         put(Language.ENGLISH, "booking.discardQuestion",
-                "Discard \"%s\"?");
+                "Discard \"{0}\"?");
         put(Language.ENGLISH, "booking.discardBody",
                 "The saved seats are forgotten. Nothing was booked, so nothing is charged and the seats go back on sale.");
         put(Language.ENGLISH, "booking.discardSavedTitle",
@@ -1109,8 +1149,8 @@ public final class Messages {
                 "That booking is already cancelled.");
         put(Language.ENGLISH, "bookings.cancelTitle",
                 "Cancel booking");
-        put(Language.ENGLISH, "booking.cancelQuestion",
-                "Cancel booking %s?");
+        put(Language.ENGLISH, "bookings.cancelQuestion",
+                "Cancel booking {0}?");
         put(Language.ENGLISH, "bookings.cancelBody",
                 "The seats will become available again.");
         put(Language.ENGLISH, "bookings.cancelled",
@@ -1308,7 +1348,7 @@ public final class Messages {
         put(Language.ENGLISH, "photo.aerialPlan",
                 "Aerial seating plan");
         put(Language.ENGLISH, "photo.addFile",
-                "add photos/%s.jpg for a photograph");
+                "add photos/{0}.jpg for a photograph");
         put(Language.ENGLISH, "error.needSeatToSave",
                 "Choose at least one seat to save");
         put(Language.ENGLISH, "error.eventGone",
@@ -1439,7 +1479,7 @@ public final class Messages {
         put(Language.LUGANDA, "seatMap.keySpace",
                 "NAFAAKA");
         put(Language.LUGANDA, "seatMap.seatDesc",
-                "Nsengwe %s %s, olulungi %d, ekizitanse %d, %s, %s");
+                "Nsengwe {0} {1}, olulungi {2}, ekizitanse {3}, {4}, {5}");
         put(Language.LUGANDA, "seatMap.seat",
                 "Kizitanse");
         put(Language.LUGANDA, "seatMap.is",
@@ -1467,7 +1507,7 @@ public final class Messages {
         put(Language.LUGANDA, "seatMap.pricesFall",
                 "Ebisoboka bilisa okuva ebisajja nokuuma emaago");
         put(Language.LUGANDA, "seatMap.frontFrom",
-                "Ebisajja okuva %s  •  Emyaago okuva");
+                "Ebisajja okuva {0}  •  Emyaago okuva");
         put(Language.LUGANDA, "seatMap.name",
                 "Kuwoko ku bibizitansa, nsengwe");
         put(Language.LUGANDA, "seatMap.nameHint",
@@ -1533,7 +1573,7 @@ public final class Messages {
         put(Language.LUGANDA, "event.vacantShort",
                 "ebizitansa bwe muganda");
         put(Language.LUGANDA, "event.seatsAndPrice",
-                "•  ebizitansa %s");
+                "•  ebizitansa {0}");
         put(Language.LUGANDA, "event.beginsNow",
                 "Okutandika katandika kaano");
         put(Language.LUGANDA, "event.dateTimeLine",
@@ -1543,7 +1583,7 @@ public final class Messages {
         put(Language.LUGANDA, "event.selectFirst",
                 "Lunguza olunaku n'ekizibuBy'obujjuni, olwoko lumbire ebizitansa byo ku ");
         put(Language.LUGANDA, "booking.confirmSeats",
-                "Kakasa");
+                "Kakasa ");
         put(Language.LUGANDA, "booking.needSeatToConfirm",
                 "Lunguza kizitanse kimu n'obwerali okukakasa.");
         put(Language.LUGANDA, "booking.continue",
@@ -1613,7 +1653,7 @@ public final class Messages {
         put(Language.LUGANDA, "booking.savedSeatWord",
                 "kizitanse ekikumi");
         put(Language.LUGANDA, "booking.discardQuestion",
-                "Sula \"%s\"?");
+                "Sula \"{0}\"?");
         put(Language.LUGANDA, "booking.discardBody",
                 "Ebizitansa ebikumi bibyibulwa. Tewali ekikwata, naye tetwebwa ada.");
         put(Language.LUGANDA, "booking.discardSavedTitle",
@@ -1728,8 +1768,8 @@ public final class Messages {
                 "Ekikwata kino kisalreadyeza.");
         put(Language.LUGANDA, "bookings.cancelTitle",
                 "Sikiza ekikwata");
-        put(Language.LUGANDA, "booking.cancelQuestion",
-                "Sikiza ekikwata %s?");
+        put(Language.LUGANDA, "bookings.cancelQuestion",
+                "Sikiza ekikwata {0}?");
         put(Language.LUGANDA, "bookings.cancelBody",
                 "Ebizitansa biri ku buto.");
         put(Language.LUGANDA, "bookings.cancelled",
@@ -1927,7 +1967,7 @@ public final class Messages {
         put(Language.LUGANDA, "photo.aerialPlan",
                 "Ebbaliwo ekiggya ekizimbe");
         put(Language.LUGANDA, "photo.addFile",
-                "yongera photos/%s.jpg");
+                "yongera photos/{0}.jpg");
         put(Language.LUGANDA, "error.needSeatToSave",
                 "Lunguza kizitanse kimu");
         put(Language.LUGANDA, "error.eventGone",
@@ -2058,7 +2098,7 @@ public final class Messages {
         put(Language.SWAHILI, "seatMap.keySpace",
                 "NAFAAKA");
         put(Language.SWAHILI, "seatMap.seatDesc",
-                "Pande %s %s, safu %d, kiti %d, %s, %s");
+                "Pande {0} {1}, safu {2}, kiti {3}, {4}, {5}");
         put(Language.SWAHILI, "seatMap.seat",
                 "Kiti");
         put(Language.SWAHILI, "seatMap.is",
@@ -2086,7 +2126,7 @@ public final class Messages {
         put(Language.SWAHILI, "seatMap.pricesFall",
                 "Bei zinashuka kutoka mbele hadi nyuma");
         put(Language.SWAHILI, "seatMap.frontFrom",
-                "Mbele kuanzia %s  •  Nyuma kuanzia");
+                "Mbele kuanzia {0}  •  Nyuma kuanzia");
         put(Language.SWAHILI, "seatMap.name",
                 "Ramani ya viti, pande");
         put(Language.SWAHILI, "seatMap.nameHint",
@@ -2152,7 +2192,7 @@ public final class Messages {
         put(Language.SWAHILI, "event.vacantShort",
                 "viti hazitoshiwi");
         put(Language.SWAHILI, "event.seatsAndPrice",
-                "•  viti %s");
+                "•  viti {0}");
         put(Language.SWAHILI, "event.beginsNow",
                 "Bookings zinafunguliwa sasa");
         put(Language.SWAHILI, "event.dateTimeLine",
@@ -2162,7 +2202,7 @@ public final class Messages {
         put(Language.SWAHILI, "event.selectFirst",
                 "Chagua tarehe na tukio, kisha chagua viti vyako");
         put(Language.SWAHILI, "booking.confirmSeats",
-                "Thibitisha");
+                "Thibitisha ");
         put(Language.SWAHILI, "booking.needSeatToConfirm",
                 "Chagua angalau kiti moja kabla ya kuthibitisha.");
         put(Language.SWAHILI, "booking.continue",
@@ -2232,7 +2272,7 @@ public final class Messages {
         put(Language.SWAHILI, "booking.savedSeatWord",
                 "kiti kilichohifadhiwa");
         put(Language.SWAHILI, "booking.discardQuestion",
-                "Tupa \"%s\"?");
+                "Tupa \"{0}\"?");
         put(Language.SWAHILI, "booking.discardBody",
                 "Viti vilivyohifadhiwa vitasahauwa. Hakuna kilichobookiwa, kwa hivyo hakuna ada na viti hurudi kuuzwa.");
         put(Language.SWAHILI, "booking.discardSavedTitle",
@@ -2347,8 +2387,8 @@ public final class Messages {
                 "Booking hii tayari imeghairiwa.");
         put(Language.SWAHILI, "bookings.cancelTitle",
                 "Ghairi booking");
-        put(Language.SWAHILI, "booking.cancelQuestion",
-                "Ghairi booking %s?");
+        put(Language.SWAHILI, "bookings.cancelQuestion",
+                "Ghairi booking {0}?");
         put(Language.SWAHILI, "bookings.cancelBody",
                 "Viti vitapatikana tena.");
         put(Language.SWAHILI, "bookings.cancelled",
@@ -2546,7 +2586,7 @@ public final class Messages {
         put(Language.SWAHILI, "photo.aerialPlan",
                 "Ramani ya viti ya uwanja");
         put(Language.SWAHILI, "photo.addFile",
-                "ongeza photos/%s.jpg");
+                "ongeza photos/{0}.jpg");
         put(Language.SWAHILI, "error.needSeatToSave",
                 "Chagua angalau kiti moja kuhifadhi");
         put(Language.SWAHILI, "error.eventGone",
@@ -2613,679 +2653,25 @@ public final class Messages {
 
 
         put(Language.ENGLISH, "home.eventCount",
-                "%d event");
+                "{0} event");
         put(Language.ENGLISH, "home.eventCountPlural",
-                "%d events");
+                "{0} events");
         put(Language.ENGLISH, "home.vacantWord",
                 "vacant");
 
         put(Language.LUGANDA, "home.eventCount",
-                "%d ekizibuBy'obujjuni");
+                "{0} ekizibuBy'obujjuni");
         put(Language.LUGANDA, "home.eventCountPlural",
-                "%d emizibiso");
+                "{0} emizibiso");
         put(Language.LUGANDA, "home.vacantWord",
                 "bwe muganda");
 
         put(Language.SWAHILI, "home.eventCount",
-                "%d tukio");
+                "{0} tukio");
         put(Language.SWAHILI, "home.eventCountPlural",
-                "%d matukio");
+                "{0} matukio");
         put(Language.SWAHILI, "home.vacantWord",
                 "hazitoshiwi");
-
-
-        put(Language.ENGLISH, "booking.bookingFeeOnce",
-                "Booking fee (once)");
-        put(Language.ENGLISH, "bookings.field.bookingFee",
-                "Booking fee");
-        put(Language.ENGLISH, "event.bookingDeadline",
-                "Booking deadline");
-        put(Language.ENGLISH, "event.dateAndTime",
-                "Date and time");
-        put(Language.ENGLISH, "ledger.pricePerSeat",
-                "Price per seat");
-        put(Language.ENGLISH, "ledger.rows",
-                "Rows");
-        put(Language.ENGLISH, "ledger.seatsPerRow",
-                "Seats per row");
-        put(Language.ENGLISH, "seatMap.bookingClosed",
-                "Booking closed");
-        put(Language.ENGLISH, "receipt.sectionLine",
-                "Section");
-        put(Language.ENGLISH, "receipt.header",
-                "NAMBOOLE STADIUM  -  BOOKING RECEIPT");
-        put(Language.ENGLISH, "receipt.receiptNo",
-                "Receipt no.");
-        put(Language.ENGLISH, "receipt.issued",
-                "Issued");
-        put(Language.ENGLISH, "receipt.statusLine",
-                "Status");
-        put(Language.ENGLISH, "receipt.eventHeading",
-                "EVENT");
-        put(Language.ENGLISH, "receipt.typeLine",
-                "Type");
-        put(Language.ENGLISH, "receipt.seatsHeading",
-                "SEATS BOOKED");
-        put(Language.ENGLISH, "receipt.colSeat",
-                "SEAT");
-        put(Language.ENGLISH, "receipt.colSection",
-                "SECTION");
-        put(Language.ENGLISH, "receipt.colTier",
-                "PRICE TIER");
-        put(Language.ENGLISH, "receipt.colAmount",
-                "AMOUNT");
-        put(Language.ENGLISH, "receipt.chargesHeading",
-                "CHARGES");
-        put(Language.ENGLISH, "receipt.seatsLine",
-                "Seats (");
-        put(Language.ENGLISH, "receipt.feeLine",
-                "Ticketing fee");
-        put(Language.ENGLISH, "receipt.totalPaid",
-                "TOTAL PAID");
-        put(Language.ENGLISH, "receipt.billedTo",
-                "BILLED TO");
-        put(Language.ENGLISH, "receipt.keepNote",
-                "Keep this receipt. Quote the receipt number at the gate.");
-        put(Language.ENGLISH, "receipt.holdNote",
-                "Seats are held under this number only.");
-        put(Language.ENGLISH, "ticket.heading",
-                "STADIUM SELECT  •  E-TICKET");
-        put(Language.ENGLISH, "ticket.arriveNote",
-                "Please arrive before the doors close. This ticket is the only");
-        put(Language.ENGLISH, "ticket.arriveNoteEnd",
-                "record of your seat; quote the reference at the entrance.");
-        put(Language.ENGLISH, "photo.aerialPlanHint",
-                "Aerial seating plan  •  add photos/");
-
-        put(Language.LUGANDA, "booking.bookingFeeOnce",
-                "Ada y'ekikwata (kikumi)");
-        put(Language.LUGANDA, "bookings.field.bookingFee",
-                "Ada y'ekikwata");
-        put(Language.LUGANDA, "event.bookingDeadline",
-                "Olunaku lwokuggwa");
-        put(Language.LUGANDA, "event.dateAndTime",
-                "Olunaku n'obudde");
-        put(Language.LUGANDA, "ledger.pricePerSeat",
-                "Ezimbe ly'ekizitanse");
-        put(Language.LUGANDA, "ledger.rows",
-                "Emizimbe");
-        put(Language.LUGANDA, "ledger.seatsPerRow",
-                "EBizitansa buli lulungi");
-        put(Language.LUGANDA, "seatMap.bookingClosed",
-                "Okutandika kikaze");
-        put(Language.LUGANDA, "receipt.sectionLine",
-                "Nsengwe");
-        put(Language.LUGANDA, "receipt.header",
-                "NAMBOOLE  -  KASIITA Y'ekIKWATA");
-
-        put(Language.LUGANDA, "receipt.receiptNo",
-                "Kasiita namba");
-        put(Language.LUGANDA, "receipt.issued",
-                "Ebisalwa");
-        put(Language.LUGANDA, "receipt.statusLine",
-                "Ebika");
-        put(Language.LUGANDA, "receipt.eventHeading",
-                "EKIZIBUBy'OBUJJUNI");
-        put(Language.LUGANDA, "receipt.typeLine",
-                "Kind");
-        put(Language.LUGANDA, "receipt.seatsHeading",
-                "EBIZITANSA EBIKWATA");
-        put(Language.LUGANDA, "receipt.colSeat",
-                "KIZITANSA");
-        put(Language.LUGANDA, "receipt.colSection",
-                "NSENGWE");
-        put(Language.LUGANDA, "receipt.colTier",
-                "EBIKA");
-        put(Language.LUGANDA, "receipt.colAmount",
-                "KATUZI");
-        put(Language.LUGANDA, "receipt.chargesHeading",
-                "ADA");
-        put(Language.LUGANDA, "receipt.seatsLine",
-                "EBizitansa (");
-        put(Language.LUGANDA, "receipt.feeLine",
-                "Ada y'okutandika");
-        put(Language.LUGANDA, "receipt.totalPaid",
-                "JIGGER EKATUZI");
-        put(Language.LUGANDA, "receipt.billedTo",
-                "AMAKWATTA");
-        put(Language.LUGANDA, "receipt.keepNote",
-                "Giriza kasiita kino. Mannya kasiita ku nnimiro.");
-        put(Language.LUGANDA, "receipt.holdNote",
-                "EBizitansa biri ku namba eno era.");
-        put(Language.LUGANDA, "ticket.heading",
-                "NAMBOOLE  •  EKWATA");
-        put(Language.LUGANDA, "ticket.arriveNote",
-                "Endereera nga emigateeza telatuma. Ekwata kino kikwale");
-        put(Language.LUGANDA, "ticket.arriveNoteEnd",
-                "yakwata ekizitansa; nannya kuwoko ku nnimiro.");
-        put(Language.LUGANDA, "photo.aerialPlanHint",
-                "Ebbaliwo ekiggya ekizimbe  •  yongera photos/");
-
-        put(Language.SWAHILI, "booking.bookingFeeOnce",
-                "Ada ya booking (mara moja)");
-        put(Language.SWAHILI, "bookings.field.bookingFee",
-                "Ada ya booking");
-        put(Language.SWAHILI, "event.bookingDeadline",
-                "Mwisho wa booking");
-        put(Language.SWAHILI, "event.dateAndTime",
-                "Tarehe na wakati");
-        put(Language.SWAHILI, "ledger.pricePerSeat",
-                "Bei kwa kiti");
-        put(Language.SWAHILI, "ledger.rows",
-                "Safu");
-        put(Language.SWAHILI, "ledger.seatsPerRow",
-                "Viti kwa safu");
-        put(Language.SWAHILI, "seatMap.bookingClosed",
-                "Bookings zimefungwa");
-        put(Language.SWAHILI, "receipt.sectionLine",
-                "Pande");
-        put(Language.SWAHILI, "receipt.header",
-                "NAMBOOLE  -  RISITI YA BOOKING");
-
-        put(Language.SWAHILI, "receipt.receiptNo",
-                "Risiti namba");
-        put(Language.SWAHILI, "receipt.issued",
-                "Isitolewa");
-        put(Language.SWAHILI, "receipt.statusLine",
-                "Hali");
-        put(Language.SWAHILI, "receipt.eventHeading",
-                "TUKIO");
-        put(Language.SWAHILI, "receipt.typeLine",
-                "Aina");
-        put(Language.SWAHILI, "receipt.seatsHeading",
-                "VITI VILIVYOOZWA");
-        put(Language.SWAHILI, "receipt.colSeat",
-                "KITI");
-        put(Language.SWAHILI, "receipt.colSection",
-                "PANDE");
-        put(Language.SWAHILI, "receipt.colTier",
-                "TABAKA LA BEI");
-        put(Language.SWAHILI, "receipt.colAmount",
-                "KIASI");
-        put(Language.SWAHILI, "receipt.chargesHeading",
-                "MALIPO");
-        put(Language.SWAHILI, "receipt.seatsLine",
-                "Viti (");
-        put(Language.SWAHILI, "receipt.feeLine",
-                "Ada ya tikiti");
-        put(Language.SWAHILI, "receipt.totalPaid",
-                "JUMLA ILIYOPOKWA");
-        put(Language.SWAHILI, "receipt.billedTo",
-                "ANwani ya");
-        put(Language.SWAHILI, "receipt.keepNote",
-                "Weka risiti hii. Namba ya risiti ionyeshe kwenye mlango.");
-        put(Language.SWAHILI, "receipt.holdNote",
-                "Viti vinasikiliwa kwa namba hii pekee.");
-        put(Language.SWAHILI, "ticket.heading",
-                "NAMBOOLE  •  TIKITI");
-        put(Language.SWAHILI, "ticket.arriveNote",
-                "Karibu kabla ya lango kufungwa. Tikiti hii ndiyo pekee");
-        put(Language.SWAHILI, "ticket.arriveNoteEnd",
-                "kumbukumbu ya kiti yako; namba ionyeshe mlangoni.");
-        put(Language.SWAHILI, "photo.aerialPlanHint",
-                "Ramani ya viti  •  ongeza photos/");
-
-
-        put(Language.ENGLISH, "nav.savedTitle",
-                "Saved seats");
-        put(Language.ENGLISH, "nav.occupancyTitle",
-                "Occupancy");
-        put(Language.ENGLISH, "booking.seatOne",
-                "1 seat");
-        put(Language.ENGLISH, "booking.seatSubtotalLabel",
-                "Seat subtotal");
-        put(Language.ENGLISH, "booking.totalDueLabel",
-                "Total due");
-        put(Language.ENGLISH, "bookings.table.stadium",
-                "Stadium");
-        put(Language.ENGLISH, "bookings.table.event",
-                "Event");
-        put(Language.ENGLISH, "bookings.table.when",
-                "When");
-        put(Language.ENGLISH, "ledger.seats",
-                "Seats");
-        put(Language.ENGLISH, "bookings.table.total",
-                "Total");
-        put(Language.ENGLISH, "facts.whereUpper",
-                "LOCATION");
-        put(Language.ENGLISH, "home.capacityUpper",
-                "CAPACITY");
-        put(Language.ENGLISH, "home.nextEvent",
-                "NEXT EVENT");
-        put(Language.ENGLISH, "schedules.tryAnother",
-                "Try another date or clear the search field.");
-        put(Language.ENGLISH, "event.bookingWord",
-                "Booking");
-        put(Language.ENGLISH, "schedules.eventCountSingular",
-                "event");
-        put(Language.ENGLISH, "schedules.eventCountPlural",
-                "events");
-        put(Language.ENGLISH, "schedules.matchingLabel",
-                "•  matching");
-        put(Language.ENGLISH, "schedules.pressEnter",
-                "Press Enter to see the full list");
-        put(Language.ENGLISH, "event.selected",
-                "Event selected");
-        put(Language.ENGLISH, "event.heldForLabel",
-                "•  held for");
-        put(Language.ENGLISH, "export.exported",
-                "Exported");
-        put(Language.ENGLISH, "export.bookingsTo",
-                "bookings to");
-        put(Language.ENGLISH, "error.bookingGone",
-                "That booking is no longer listed");
-        put(Language.ENGLISH, "bookings.section.bookingUpper",
-                "BOOKING");
-        put(Language.ENGLISH, "bookings.section.venueUpper",
-                "STADIUM");
-        put(Language.ENGLISH, "booking.discardQuestionLabel",
-                "Discard");
-        put(Language.ENGLISH, "booking.findUnderSavedLabel",
-                "•  find them under Saved seats");
-        put(Language.ENGLISH, "booking.savedSeatsNotBookedBody",
-                "Saving them keeps your choice so you can come back later, but it does not hold them and does not sell them. Somebody else may take them, and this page will say so when that happens.");
-        put(Language.ENGLISH, "booking.discardSavedBody",
-                "The saved seats are forgotten. Nothing was booked, so nothing is charged and the seats go back on sale.");
-        put(Language.ENGLISH, "booking.labelHintDescMid",
-                "characters. Something you will ");
-        put(Language.ENGLISH, "booking.noSeatsLabel",
-                "No notices");
-        put(Language.ENGLISH, "theme.lightWord",
-                "Light");
-        put(Language.ENGLISH, "theme.darkWord",
-                "Dark");
-        put(Language.ENGLISH, "ledger.seatsPerRowLabel",
-                "Seats per row");
-        put(Language.ENGLISH, "event.perReservationLabel",
-                " per reservation");
-
-        put(Language.LUGANDA, "nav.savedTitle",
-                "Viti vyalikumi");
-        put(Language.LUGANDA, "nav.occupancyTitle",
-                "Ujaa");
-        put(Language.LUGANDA, "booking.seatOne",
-                "kizitanse 1");
-        put(Language.LUGANDA, "booking.seatSubtotalLabel",
-                "Jigger ly'ebizitansa");
-        put(Language.LUGANDA, "booking.totalDueLabel",
-                "Jigger esobola");
-        put(Language.LUGANDA, "bookings.table.stadium",
-                "Ekizimbe");
-        put(Language.LUGANDA, "bookings.table.event",
-                "EkizibuBy'obujjuni");
-        put(Language.LUGANDA, "bookings.table.when",
-                "Olunaku n'obudde");
-        put(Language.LUGANDA, "ledger.seats",
-                "Ebizitansa");
-        put(Language.LUGANDA, "bookings.table.total",
-                "Jigger");
-        put(Language.LUGANDA, "facts.whereUpper",
-                "EFUULU");
-        put(Language.LUGANDA, "home.capacityUpper",
-                "BUJJA");
-        put(Language.LUGANDA, "home.nextEvent",
-                "EKIZIBUBy'OBUJJUNI KIRU");
-        put(Language.LUGANDA, "schedules.tryAnother",
-                "Geru olunaku olu lunaku kumiriza oba buli nnyo.");
-        put(Language.LUGANDA, "event.bookingWord",
-                "Ekikwata");
-        put(Language.LUGANDA, "schedules.eventCountSingular",
-                "ekizibuBy'obujjuni");
-        put(Language.LUGANDA, "schedules.eventCountPlural",
-                "emizibiso");
-        put(Language.LUGANDA, "schedules.matchingLabel",
-                "•  ekisobola");
-        put(Language.LUGANDA, "schedules.pressEnter",
-                "Yogera Enter okulaba olunaku lwa bwera");
-        put(Language.LUGANDA, "event.selected",
-                "EkizibuBy'obujjuni ekisoboledwa");
-        put(Language.LUGANDA, "event.heldForLabel",
-                "•  kirimidwa ku");
-        put(Language.LUGANDA, "export.exported",
-                "Yaumuzibwa");
-        put(Language.LUGANDA, "export.bookingsTo",
-                "ebikwata ku");
-        put(Language.LUGANDA, "error.bookingGone",
-                "Ekikwata kino kisibulukidde ku lulimi.");
-        put(Language.LUGANDA, "bookings.section.bookingUpper",
-                "EKIKWATA");
-        put(Language.LUGANDA, "bookings.section.venueUpper",
-                "EKIZIMBE");
-        put(Language.LUGANDA, "booking.discardQuestionLabel",
-                "Sula");
-        put(Language.LUGANDA, "booking.findUnderSavedLabel",
-                "•  boola ku Viti vyalikumi");
-        put(Language.LUGANDA, "booking.savedSeatsNotBookedBody",
-                "Okugiriza bikubikira okusubiza naye tetwerako okubikkula. Muntu omu alaba asobola okutwala, era luno ku lupagana luzannyeuka olw'ekyo.");
-        put(Language.LUGANDA, "booking.discardSavedBody",
-                "Ebizitansa ebikumi bibyibulwa. Tewali ekikwata, naye tetwebwa ada.");
-        put(Language.LUGANDA, "booking.labelHintDescMid",
-                "ebimyango. Ekintu kisobola okutwala ");
-        put(Language.LUGANDA, "booking.noSeatsLabel",
-                "Tewali kikwateekero");
-        put(Language.LUGANDA, "theme.lightWord",
-                "Maawe");
-        put(Language.LUGANDA, "theme.darkWord",
-                "Ekiro");
-        put(Language.LUGANDA, "ledger.seatsPerRowLabel",
-                "EBizitansa buli lulungi");
-        put(Language.LUGANDA, "event.perReservationLabel",
-                " kwa nkwaateeka");
-
-        put(Language.SWAHILI, "nav.savedTitle",
-                "Viti vilivyohifadhiwa");
-        put(Language.SWAHILI, "nav.occupancyTitle",
-                "Uwezekano");
-        put(Language.SWAHILI, "booking.seatOne",
-                "kiti 1");
-        put(Language.SWAHILI, "booking.seatSubtotalLabel",
-                "Jumla ya viti");
-        put(Language.SWAHILI, "booking.totalDueLabel",
-                "Inayotakiwa kulipa");
-        put(Language.SWAHILI, "bookings.table.stadium",
-                "Uwanja");
-        put(Language.SWAHILI, "bookings.table.event",
-                "Tukio");
-        put(Language.SWAHILI, "bookings.table.when",
-                "Tarehe");
-        put(Language.SWAHILI, "ledger.seats",
-                "Viti");
-        put(Language.SWAHILI, "bookings.table.total",
-                "Jumla");
-        put(Language.SWAHILI, "facts.whereUpper",
-                "MAHALI");
-        put(Language.SWAHILI, "home.capacityUpper",
-                "UWEZEKANO");
-        put(Language.SWAHILI, "home.nextEvent",
-                "TIKIO KIJAYO");
-        put(Language.SWAHILI, "schedules.tryAnother",
-                "Jaribu tarehe nyingine au futa utafutaji.");
-        put(Language.SWAHILI, "event.bookingWord",
-                "Booking");
-        put(Language.SWAHILI, "schedules.eventCountSingular",
-                "tukio");
-        put(Language.SWAHILI, "schedules.eventCountPlural",
-                "matukio");
-        put(Language.SWAHILI, "schedules.matchingLabel",
-                "•  inayolingana");
-        put(Language.SWAHILI, "schedules.pressEnter",
-                "Bonyeza Enter kuona orodha kamili");
-        put(Language.SWAHILI, "event.selected",
-                "Tukio limechaguliwa");
-        put(Language.SWAHILI, "event.heldForLabel",
-                "•  imeshikiliwa kwa");
-        put(Language.SWAHILI, "export.exported",
-                "Imehamishwa");
-        put(Language.SWAHILI, "export.bookingsTo",
-                "bookings kwenye");
-        put(Language.SWAHILI, "error.bookingGone",
-                "Booking hiyo haipo tena kwenye orodha.");
-        put(Language.SWAHILI, "bookings.section.bookingUpper",
-                "BOOKING");
-        put(Language.SWAHILI, "bookings.section.venueUpper",
-                "UWANJA");
-        put(Language.SWAHILI, "booking.discardQuestionLabel",
-                "Tupa");
-        put(Language.SWAHILI, "booking.findUnderSavedLabel",
-                "•  pata kwenye Viti vilivyohifadhiwa");
-        put(Language.SWAHILI, "booking.savedSeatsNotBookedBody",
-                "Kuhifadhi hukuhifadhi uchaguzi wako ili urudi, lakini hakushikili viti wala kuviuza. Mtu mwingine anaweza kuvichukua, na ukurasa huu utaeleza wakati huo.");
-        put(Language.SWAHILI, "booking.discardSavedBody",
-                "Viti vilivyohifadhiwa vitasahauwa. Hakuna kilichobookiwa, kwa hivyo hakuna ada na viti hurudi kuuzwa.");
-        put(Language.SWAHILI, "booking.labelHintDescMid",
-                "herufi. Jambo utakayokumbuka ");
-        put(Language.SWAHILI, "booking.noSeatsLabel",
-                "Hakuna taarifa");
-        put(Language.SWAHILI, "theme.lightWord",
-                "Mwanga");
-        put(Language.SWAHILI, "theme.darkWord",
-                "Giza");
-        put(Language.SWAHILI, "ledger.seatsPerRowLabel",
-                "Viti kwa safu");
-        put(Language.SWAHILI, "event.perReservationLabel",
-                " kwa kila utunuzi");
-
-
-        put(Language.ENGLISH, "saved.subtitle",
-                "Seats you chose earlier, kept until you book them or discard them.");
-        put(Language.ENGLISH, "ticket.csvEvent",
-                "Event");
-        put(Language.ENGLISH, "ticket.csvCustomer",
-                "Customer");
-        put(Language.ENGLISH, "ticket.csvBookedOn",
-                "BookedOn");
-
-        put(Language.LUGANDA, "saved.subtitle",
-                "Viti owaliwo, bitawulidwa nga tebikwata oba osula.");
-        put(Language.LUGANDA, "ticket.csvEvent",
-                "Event");
-        put(Language.LUGANDA, "ticket.csvCustomer",
-                "Mteja");
-        put(Language.LUGANDA, "ticket.csvBookedOn",
-                "BookedOn");
-
-        put(Language.SWAHILI, "saved.subtitle",
-                "Viti ulivyochagua awali, zinabaki hadi uzihudhurie au kuzitupa.");
-        put(Language.SWAHILI, "ticket.csvEvent",
-                "Tukio");
-        put(Language.SWAHILI, "ticket.csvCustomer",
-                "Mteja");
-        put(Language.SWAHILI, "ticket.csvBookedOn",
-                "IliyookwaTarehe");
-
-
-        put(Language.ENGLISH, "nav.backArrow",
-                "← Back");
-        put(Language.ENGLISH, "booking.seatLimitLabel",
-                "%d seats");
-        put(Language.ENGLISH, "booking.savedOnLabel",
-                "  •  saved");
-        put(Language.ENGLISH, "payment.mobileNote",
-                "•  mobile money is simulated, no money moves");
-        put(Language.ENGLISH, "payment.lineLabel",
-                "  Payment: ");
-        put(Language.ENGLISH, "print.sentLabel",
-                " sent to the printer");
-        put(Language.ENGLISH, "bookings.section.locationLabel",
-                "Location");
-        put(Language.ENGLISH, "bookings.section.addressLabel",
-                "Address");
-        put(Language.ENGLISH, "bookings.section.capacityLabel",
-                "Capacity");
-        put(Language.ENGLISH, "bookings.section.eventUpper",
-                "EVENT");
-        put(Language.ENGLISH, "bookings.section.eventLabel",
-                "Event");
-        put(Language.ENGLISH, "bookings.section.bookedByUpper",
-                "BOOKED BY");
-        put(Language.ENGLISH, "bookings.section.paidUpper",
-                "SEATS AND PAYMENT");
-        put(Language.ENGLISH, "bookings.seatSubtotalLabel",
-                "Seat subtotal");
-        put(Language.ENGLISH, "bookings.statusCancelled",
-                "CANCELLED");
-        put(Language.ENGLISH, "occupancy.endLabel",
-                "End");
-        put(Language.ENGLISH, "occupancy.allEventsLabel",
-                "All events");
-        put(Language.ENGLISH, "ledger.rowLabel",
-                "Row");
-        put(Language.ENGLISH, "ledger.bookedOfLabel",
-                " booked of ");
-        put(Language.ENGLISH, "ledger.bySectionLabel",
-                "By section: ");
-        put(Language.ENGLISH, "ledger.totalLabel",
-                "Total");
-        put(Language.ENGLISH, "search.typeToChoose",
-                "Type to search. Use the arrow keys and Enter to choose a suggestion.");
-        put(Language.ENGLISH, "search.venueMatchesLabel",
-                " venue matches");
-        put(Language.ENGLISH, "search.venuesMatchLabel",
-                " venues match");
-        put(Language.ENGLISH, "search.eventMatchesLabel",
-                " event matches");
-        put(Language.ENGLISH, "search.eventsMatchLabel",
-                " events match");
-        put(Language.ENGLISH, "search.nextLabel",
-                "  •  next ");
-        put(Language.ENGLISH, "saved.seatSavedLabel",
-                "saved seat");
-        put(Language.ENGLISH, "saved.pickupLabel",
-                "Picked up ");
-        put(Language.ENGLISH, "saved.chooseLabel",
-                "Choose");
-        put(Language.ENGLISH, "schedules.comingUpLabel",
-                " coming up at ");
-        put(Language.ENGLISH, "schedules.savedTimeLabel",
-                "  •  saved ");
-        put(Language.ENGLISH, "receipt.prefix",
-                "Receipt ");
-        put(Language.ENGLISH, "ticket.prefix",
-                "Ticket ");
-        put(Language.ENGLISH, "event.doorsLabel",
-                "Doors ");
-
-        put(Language.LUGANDA, "nav.backArrow",
-                "← Subira");
-        put(Language.LUGANDA, "booking.seatLimitLabel",
-                "%d ebizitansa");
-        put(Language.LUGANDA, "booking.savedOnLabel",
-                "  •  ekikumi");
-        put(Language.LUGANDA, "payment.mobileNote",
-                "•  essimu y'obujjuni alaba, tessuma tetigera");
-        put(Language.LUGANDA, "payment.lineLabel",
-                "  Okudula: ");
-        put(Language.LUGANDA, "print.sentLabel",
-                " yatindika ku mashinery");
-        put(Language.LUGANDA, "bookings.section.locationLabel",
-                "Ekizimbe");
-        put(Language.LUGANDA, "bookings.section.addressLabel",
-                "Endereza");
-        put(Language.LUGANDA, "bookings.section.capacityLabel",
-                "Bujja");
-        put(Language.LUGANDA, "bookings.section.eventUpper",
-                "EKIZIBUBy'OBUJJUNI");
-        put(Language.LUGANDA, "bookings.section.eventLabel",
-                "EkizibuBy'obujjuni");
-        put(Language.LUGANDA, "bookings.section.bookedByUpper",
-                "EKIKWATWA N'");
-        put(Language.LUGANDA, "bookings.section.paidUpper",
-                "EBIZITANSA N'OKUDULA");
-        put(Language.LUGANDA, "bookings.seatSubtotalLabel",
-                "Jigger ly'ebizitansa");
-        put(Language.LUGANDA, "bookings.statusCancelled",
-                "EKISIKIZIBWA");
-        put(Language.LUGANDA, "occupancy.endLabel",
-                "Nsengwe");
-        put(Language.LUGANDA, "occupancy.allEventsLabel",
-                "Biro byonna");
-        put(Language.LUGANDA, "ledger.rowLabel",
-                "Olulungi");
-        put(Language.LUGANDA, "ledger.bookedOfLabel",
-                " ebigiridwa ku ");
-        put(Language.LUGANDA, "ledger.bySectionLabel",
-                "Ku nsengwe:  ");
-        put(Language.LUGANDA, "ledger.totalLabel",
-                "Jigger");
-        put(Language.LUGANDA, "search.typeToChoose",
-                "Andika okushunja. Kigyezi bimutula, era Enter osala okusala.");
-        put(Language.LUGANDA, "search.venueMatchesLabel",
-                " amabirali gasobola");
-        put(Language.LUGANDA, "search.venuesMatchLabel",
-                " amabirali gasobola");
-        put(Language.LUGANDA, "search.eventMatchesLabel",
-                " ekizibuBy'obujjuni kisobola");
-        put(Language.LUGANDA, "search.eventsMatchLabel",
-                " emizibiso gisobola");
-        put(Language.LUGANDA, "search.nextLabel",
-                "  •  kiri ");
-        put(Language.LUGANDA, "saved.seatSavedLabel",
-                "kizitanse ekikumi");
-        put(Language.LUGANDA, "saved.pickupLabel",
-                "Kiweeka ");
-        put(Language.LUGANDA, "saved.chooseLabel",
-                "Lunda");
-        put(Language.LUGANDA, "schedules.comingUpLabel",
-                " ebiri ");
-        put(Language.LUGANDA, "schedules.savedTimeLabel",
-                "  •  ekikumi ");
-        put(Language.LUGANDA, "receipt.prefix",
-                "Kasiita ");
-        put(Language.LUGANDA, "ticket.prefix",
-                "Ekwata ");
-        put(Language.LUGANDA, "event.doorsLabel",
-                "Emigateeza ");
-
-        put(Language.SWAHILI, "nav.backArrow",
-                "← Rudi");
-        put(Language.SWAHILI, "booking.seatLimitLabel",
-                "%d viti");
-        put(Language.SWAHILI, "booking.savedOnLabel",
-                "  •  imehifadhiwa");
-        put(Language.SWAHILI, "payment.mobileNote",
-                "•  malipo ya simu ni ya kuonyesha tu, pesa hazitishukiki");
-        put(Language.SWAHILI, "payment.lineLabel",
-                "  Malipo: ");
-        put(Language.SWAHILI, "print.sentLabel",
-                " imetumwa kwa kichapishaji");
-        put(Language.SWAHILI, "bookings.section.locationLabel",
-                "Mahali");
-        put(Language.SWAHILI, "bookings.section.addressLabel",
-                "Anwani");
-        put(Language.SWAHILI, "bookings.section.capacityLabel",
-                "Uwezekano");
-        put(Language.SWAHILI, "bookings.section.eventUpper",
-                "TUKIO");
-        put(Language.SWAHILI, "bookings.section.eventLabel",
-                "Tukio");
-        put(Language.SWAHILI, "bookings.section.bookedByUpper",
-                "IMEBOOKWA NA");
-        put(Language.SWAHILI, "bookings.section.paidUpper",
-                "VITI NA MALIPO");
-        put(Language.SWAHILI, "bookings.seatSubtotalLabel",
-                "Jumla ya viti");
-        put(Language.SWAHILI, "bookings.statusCancelled",
-                "IMEGHAIRIWA");
-        put(Language.SWAHILI, "occupancy.endLabel",
-                "Pande");
-        put(Language.SWAHILI, "occupancy.allEventsLabel",
-                "Matukio yote");
-        put(Language.SWAHILI, "ledger.rowLabel",
-                "Safu");
-        put(Language.SWAHILI, "ledger.bookedOfLabel",
-                " viliyookwa kati ya ");
-        put(Language.SWAHILI, "ledger.bySectionLabel",
-                "Kwa pande:  ");
-        put(Language.SWAHILI, "ledger.totalLabel",
-                "Jumla");
-        put(Language.SWAHILI, "search.typeToChoose",
-                "Andika kutafuta. Tumia vishale na Enter kuchagua.");
-        put(Language.SWAHILI, "search.venueMatchesLabel",
-                " majengo yanayolingana");
-        put(Language.SWAHILI, "search.venuesMatchLabel",
-                " majengo yanayolingana");
-        put(Language.SWAHILI, "search.eventMatchesLabel",
-                " tukio linalolingana");
-        put(Language.SWAHILI, "search.eventsMatchLabel",
-                " matukio yanayolingana");
-        put(Language.SWAHILI, "search.nextLabel",
-                "  •  zijazo ");
-        put(Language.SWAHILI, "saved.seatSavedLabel",
-                "kiti kilichohifadhiwa");
-        put(Language.SWAHILI, "saved.pickupLabel",
-                "Imepelekwa ");
-        put(Language.SWAHILI, "saved.chooseLabel",
-                "Chagua");
-        put(Language.SWAHILI, "schedules.comingUpLabel",
-                " inayokuja kwenye ");
-        put(Language.SWAHILI, "schedules.savedTimeLabel",
-                "  •  imehifadhiwa ");
-        put(Language.SWAHILI, "receipt.prefix",
-                "Risiti ");
-        put(Language.SWAHILI, "ticket.prefix",
-                "Tikiti ");
-        put(Language.SWAHILI, "event.doorsLabel",
-                "Lango ");
 
     }
 }

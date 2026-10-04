@@ -81,7 +81,7 @@ cd /home/shema/Desktop/PROJECTS/stadium-seat-booking
 ./run-tests.sh
 ```
 
-**277 tests, no build tool, no network access** — just a JDK and the bundled driver.
+**299 tests, no build tool, no network access** — just a JDK and the bundled driver.
 
 They cover the venue and event data, the four pricing ends and the row curve, exact
 seat selection through the real click path, the stadium map and its size limits, the
@@ -129,6 +129,17 @@ Ten of them exist because of defects found while building this:
   A customer could type a name, watch the save succeed, and find later that the start of
   it was gone. It is now refused with both numbers in the message — how long the label
   was, and how short it has to be.
+- **Changing the language only changed some of the screen.** The header and the booking
+  page followed the choice, and the schedule, the bookings list, the occupancy report and
+  the saved seats carried on reading in the old language underneath a translated header.
+  Every screen is now redrawn on a switch, and three widgets built once when the
+  application opens — the search boxes, the status line and the seat map's tabs — are
+  renamed by hand, since no screen rebuild reaches them.
+- **The seat map's four ends stayed in English** whatever language was selected. "VIP
+  Box" and "Main Stand" are facts about the place rather than wording the interface
+  supplies, so nothing in the translation table held them. `VenueWords` now names them
+  in all three languages, and the tabs are renamed on a switch rather than keeping the
+  name they were built with.
 
 ## How to use it
 
@@ -195,7 +206,23 @@ booking's own recorded total. That is exact here because prices are fixed per ev
 venue that repriced between sales would need the price stored on the booking line.
 
 **Language.** English, Luganda and Swahili, switchable from the header, with the whole
-interface — seat map, tables, dialogs, receipts — following the choice.
+interface following the choice: every screen is redrawn, the seat map's four ends and
+the event badges are renamed, and the search boxes, status line and map tabs — all
+built once at startup — are renamed by hand. Every one of the 463 keys exists in all
+three languages, and a test fails if one does not, so a screen cannot quietly show
+English after the switch.
+
+Where the wording lives:
+
+- `Messages.java` holds every label. All three languages carry every key; the English
+  fallback in `get()` is for safety at runtime, not a substitute for translating.
+- `VenueWords.java` translates what comes from the venue data rather than the
+  interface — the four ends, the kinds of event, and the shape of the ground.
+- Numbers that describe a rule — the seat limit, the booking fee, prices — are passed
+  into the wording rather than typed into it, so changing the constant changes every
+  screen that mentions it.
+- `Messages.count(key, n)` picks the singular or plural form, so a screen never reads
+  "3 seat" or "1 seats".
 
 **Theme.** Light and dark, switched from the header and remembered between runs. One
 palette drives everything, and the tests measure real WCAG contrast in both themes

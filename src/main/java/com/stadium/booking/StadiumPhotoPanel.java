@@ -123,7 +123,8 @@ public final class StadiumPhotoPanel extends JPanel {
         if (photograph != null) {
             return Messages.get("photo.photograph") + "  •  " + expectedPhotoFile(stadium).getName();
         }
-        return Messages.get("photo.aerialPlan") + "  •  add photos/" + stadium.getId() + ".jpg for a photograph";
+        return Messages.get("photo.aerialPlan") + "  •  "
+                + Messages.get("photo.addFile", stadium.getId());
     }
 
     @Override
