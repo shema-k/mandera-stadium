@@ -5,7 +5,7 @@
       "type": "java",
       "name": "Run the app",
       "request": "launch",
-      "mainClass": "com.stadium.booking.StadiumBookingApp",
+      "mainClass": "com.stadium.booking.ui.StadiumBookingApp",
       "cwd": "${workspaceFolder}",
       "console": "internalConsole",
       "stopOnEntry": false,

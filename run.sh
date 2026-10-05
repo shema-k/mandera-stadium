@@ -35,4 +35,4 @@ mkdir -p "$OUT_DIR"
 find "$ROOT_DIR/src/main/java" -name '*.java' -print0 \
   | xargs -0 javac -cp "$LIB_DIR/*" -d "$OUT_DIR"
 
-exec java -cp "$OUT_DIR:$LIB_DIR/*" com.stadium.booking.StadiumBookingApp
+exec java -cp "$OUT_DIR:$LIB_DIR/*" com.stadium.booking.ui.StadiumBookingApp

@@ -1,5 +1,15 @@
 package com.stadium.booking;
 
+import com.stadium.booking.booking.BookingService;
+import com.stadium.booking.data.Seat;
+import com.stadium.booking.data.SeatKey;
+import com.stadium.booking.data.Stadium;
+import com.stadium.booking.data.StadiumData;
+import com.stadium.booking.data.StadiumEvent;
+import com.stadium.booking.ui.SeatMapPanel;
+import com.stadium.booking.ui.StadiumBookingApp;
+import com.stadium.booking.ui.StadiumPhotoPanel;
+
 import java.awt.Component;
 import java.awt.Container;
 import java.awt.GraphicsEnvironment;

@@ -1,5 +1,13 @@
 package com.stadium.booking;
 
+import com.stadium.booking.booking.BookingService;
+import com.stadium.booking.data.Seat;
+import com.stadium.booking.data.Stadium;
+import com.stadium.booking.data.StadiumData;
+import com.stadium.booking.data.StadiumEvent;
+import com.stadium.booking.ui.SeatMapPanel;
+import com.stadium.booking.ui.StadiumBookingApp;
+
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.lang.reflect.Field;

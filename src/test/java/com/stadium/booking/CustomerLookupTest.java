@@ -1,5 +1,12 @@
 package com.stadium.booking;
 
+import com.stadium.booking.booking.Booking;
+import com.stadium.booking.booking.BookingService;
+import com.stadium.booking.data.SeatKey;
+import com.stadium.booking.data.StadiumData;
+import com.stadium.booking.data.StadiumEvent;
+import com.stadium.booking.storage.BookingStore;
+
 import static com.stadium.booking.TestRunner.assertEquals;
 import static com.stadium.booking.TestRunner.assertFalse;
 import static com.stadium.booking.TestRunner.assertTrue;

@@ -1,5 +1,16 @@
 package com.stadium.booking;
 
+import com.stadium.booking.booking.BookingService;
+import com.stadium.booking.booking.OccupancyReport;
+import com.stadium.booking.booking.Receipt;
+import com.stadium.booking.booking.TicketBuilder;
+import com.stadium.booking.text.Messages;
+import com.stadium.booking.text.VenueWords;
+import com.stadium.booking.ui.DetailsFormPanel;
+import com.stadium.booking.ui.SeatMapPanel;
+import com.stadium.booking.ui.StadiumBookingApp;
+import com.stadium.booking.ui.StadiumPhotoPanel;
+
 import static com.stadium.booking.TestRunner.assertTrue;
 import static com.stadium.booking.TestRunner.suite;
 import static com.stadium.booking.TestRunner.test;
@@ -37,9 +48,9 @@ final class ScreenWording {
 
     /** The files a customer can read wording out of. */
     private static final List<String> SOURCES = List.of(
-            "StadiumBookingApp.java", "SeatMapPanel.java", "DetailsFormPanel.java",
-            "Receipt.java", "TicketBuilder.java", "StadiumPhotoPanel.java",
-            "OccupancyReport.java", "BookingService.java", "VenueWords.java");
+            "ui/StadiumBookingApp.java", "ui/SeatMapPanel.java", "ui/DetailsFormPanel.java",
+            "booking/Receipt.java", "booking/TicketBuilder.java", "ui/StadiumPhotoPanel.java",
+            "booking/OccupancyReport.java", "booking/BookingService.java", "text/VenueWords.java");
 
     /** A call to the wording table, capturing the key and what follows it. */
     private static final Pattern CALL = Pattern.compile(
@@ -113,7 +124,7 @@ final class ScreenWording {
     /** The screens {@code applyLanguage} rebuilds. */
     static java.util.Set<String> screensRedrawnOnLanguageChange() {
         java.util.Set<String> found = new java.util.LinkedHashSet<>();
-        String code = source("StadiumBookingApp.java");
+        String code = source("ui/StadiumBookingApp.java");
         int start = code.indexOf("private void redrawCurrentScreen()");
         if (start < 0) {
             return found;
@@ -142,7 +153,7 @@ final class ScreenWording {
      */
     static List<String> widgetsRenamedOnLanguageChange() {
         List<String> renamed = new ArrayList<>();
-        String app = source("StadiumBookingApp.java");
+        String app = source("ui/StadiumBookingApp.java");
         int start = app.indexOf("private void applyLanguage()");
         int end = app.indexOf("\n    private ", start + 10);
         String body = end < 0 ? app.substring(start) : app.substring(start, end);
@@ -151,7 +162,7 @@ final class ScreenWording {
         while (matcher.find()) {
             renamed.add(matcher.group(1));
         }
-        String map = source("SeatMapPanel.java");
+        String map = source("ui/SeatMapPanel.java");
         int mapStart = map.indexOf("void retranslate()");
         int mapEnd = map.indexOf("\n    private ", mapStart + 10);
         String mapBody = mapEnd < 0 ? map.substring(mapStart)
@@ -172,7 +183,7 @@ final class ScreenWording {
      */
     static List<String> dataNamedTabsWithoutRenaming() {
         List<String> missing = new ArrayList<>();
-        String map = source("SeatMapPanel.java");
+        String map = source("ui/SeatMapPanel.java");
         boolean tabsAreDataNamed = map.contains("addTab(")
                 && map.contains("section.getLabel()");
         boolean renamedOnSwitch = widgetsRenamedOnLanguageChange().contains("sectionTabs");

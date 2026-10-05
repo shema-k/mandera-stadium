@@ -1,5 +1,8 @@
 package com.stadium.booking;
 
+import com.stadium.booking.booking.BookingService;
+import com.stadium.booking.text.Messages;
+
 import static com.stadium.booking.TestRunner.assertEquals;
 import static com.stadium.booking.TestRunner.assertFalse;
 import static com.stadium.booking.TestRunner.assertTrue;

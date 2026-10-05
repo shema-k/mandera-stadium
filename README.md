@@ -4,6 +4,9 @@ A professional desktop seat-booking application for one stadium: **Mandela Natio
 Stadium (Namboole)**, Kampala, Uganda. Built with Java Swing, no frameworks and no
 build tool required.
 
+**New to the code? Start with [CODE_GUIDE.md](CODE_GUIDE.md)** — it lists every
+file and what it is for.
+
 **Open to everyone who books.** There are no staff accounts, no PINs, no roles and
 no sign-in. Every screen — the schedule, the seat map, your bookings, the occupancy
 report, the booked-seats list — opens directly. There is nothing to log into and
@@ -170,6 +173,12 @@ over 120 characters or a request under 5 is marked under its own field, with the
 accepted length stated on the form beforehand, and what you wrote stays in the box.
 
 ## Notes
+
+**The code is grouped by job.** Under `src/main/java/com/stadium/booking/` there are
+five folders, and which one a file is in tells you what it is: `data/` holds the
+facts about the stadium, `booking/` the rules, `storage/` saving to disk, `text/` the
+three languages and the two themes, and `ui/` the screens. Each folder explains
+itself in a `package-info.java`. [CODE_GUIDE.md](CODE_GUIDE.md) lists every file.
 
 **Input is checked before it is acted on, not after.** The rules live apart from the
 screens so they can be tested without a window: `CustomerDetails` for the three contact

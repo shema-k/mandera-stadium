@@ -1,0 +1,1060 @@
+package com.stadium.booking.ui;
+
+import com.stadium.booking.booking.BookingService;
+import com.stadium.booking.booking.SeatHoldService;
+import com.stadium.booking.data.Seat;
+import com.stadium.booking.data.SeatKey;
+import com.stadium.booking.data.SeatSection;
+import com.stadium.booking.data.SeatStatus;
+import com.stadium.booking.data.Stadium;
+import com.stadium.booking.data.StadiumEvent;
+import com.stadium.booking.data.StadiumShape;
+import com.stadium.booking.text.Messages;
+import com.stadium.booking.text.Theme;
+import com.stadium.booking.text.VenueWords;
+
+import javax.swing.AbstractAction;
+import javax.swing.BorderFactory;
+import javax.swing.Box;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JTabbedPane;
+import javax.swing.KeyStroke;
+import javax.swing.SwingConstants;
+
+import java.awt.BasicStroke;
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Cursor;
+import java.awt.Dimension;
+import java.awt.FlowLayout;
+import java.awt.Font;
+import java.awt.Graphics2D;
+import java.awt.Graphics;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.Insets;
+import java.awt.Rectangle;
+import java.awt.RenderingHints;
+import java.awt.event.ActionEvent;
+import java.awt.event.FocusAdapter;
+import java.awt.event.FocusEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.awt.geom.Ellipse2D;
+import java.awt.geom.RoundRectangle2D;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Consumer;
+import javax.swing.AbstractAction;
+import javax.swing.BorderFactory;
+import javax.swing.Box;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JTabbedPane;
+import javax.swing.KeyStroke;
+import javax.swing.SwingConstants;
+/**
+ * A scalable, clickable seat map. A custom canvas is used instead of creating
+ * tens of thousands of Swing buttons, which keeps large stadium maps responsive.
+ */
+@SuppressWarnings("serial")
+public final class SeatMapPanel extends JPanel {
+    // Repainted in place by applyTheme() so dark mode reaches the seat map without
+    // every seat state being decided twice.
+    private static Color AVAILABLE_BACKGROUND;
+    private static Color AVAILABLE_FOREGROUND;
+    private static Color SELECTED_BACKGROUND;
+    private static Color SELECTED_FOREGROUND;
+    private static Color BOOKED_BACKGROUND;
+    private static Color BOOKED_FOREGROUND;
+    private static Color CLOSED_BACKGROUND;
+    private static Color CLOSED_FOREGROUND;
+    private static Color SEAT_OUTLINE;
+    private static Color HELD_BACKGROUND;
+    private static Color HELD_FOREGROUND;
+    private static Color MAP_BACKGROUND;
+    private static Color MAP_BORDER;
+    private static Color PITCH_GREEN;
+    private static Color SUCCESS_FOREGROUND;
+
+    static {
+        applyColours();
+    }
+
+    private static void applyColours() {
+        Theme.Palette palette = Theme.current();
+        AVAILABLE_BACKGROUND = palette.seatVacant();
+        AVAILABLE_FOREGROUND = palette.seatVacantText();
+        SELECTED_BACKGROUND = palette.seatSelected();
+        SELECTED_FOREGROUND = palette.seatSelectedText();
+        BOOKED_BACKGROUND = palette.seatBooked();
+        BOOKED_FOREGROUND = palette.seatBookedText();
+        CLOSED_BACKGROUND = palette.seatClosed();
+        CLOSED_FOREGROUND = palette.seatClosedText();
+        SEAT_OUTLINE = palette.seatOutline();
+        HELD_BACKGROUND = palette.seatHeld();
+        HELD_FOREGROUND = palette.seatHeldText();
+        MAP_BACKGROUND = palette.mapBackground();
+        MAP_BORDER = palette.mapBorder();
+        PITCH_GREEN = palette.pitch();
+        SUCCESS_FOREGROUND = palette.success();
+    }
+
+    /** Re-reads the palette after the theme changes and repaints the map. */
+    void applyTheme() {
+        applyColours();
+        if (lastSeatValue != null) {
+            lastSeatValue.setForeground(Theme.current().muted());
+        }
+        for (SeatCanvas canvas : canvases.values()) {
+            canvas.setBackground(MAP_BACKGROUND);
+        }
+        revalidate();
+        repaint();
+    }
+
+    // Namboole's largest end is 130 rows by 99 seats. At the old cell size that
+    // needed a canvas over 2,000px tall, so the map swallowed the whole window
+    // and the rest of the booking screen was pushed off. Smaller cells and a
+    // viewport cap mean the map sits in a fixed box and scrolls inside it.
+    private static final int CELL_WIDTH = 11;
+    private static final int CELL_HEIGHT = 8;
+    private static final int CELL_GAP = 1;
+    private static final int ROW_LABEL_WIDTH = 34;
+    private static final int MAP_TOP = 34;
+    /** Tallest the seat canvas is ever allowed to be, before it scrolls. */
+    private static final int MAX_CANVAS_HEIGHT = 300;
+
+    private final BookingService bookingService;
+    private SeatHoldService holdService;
+    private String holdOwner = "customer";
+    private Set<SeatKey> heldSeats = new LinkedHashSet<>();
+    private final Consumer<Seat> seatToggledListener;
+    private final Runnable selectionChangedListener;
+    private final Consumer<String> messageListener;
+    private final Set<SeatKey> selectedSeats = new LinkedHashSet<>();
+    private final Set<SeatKey> bookedSeats = new LinkedHashSet<>();
+    private final Map<String, SeatCanvas> canvases = new LinkedHashMap<>();
+    private final JTabbedPane sectionTabs = new JTabbedPane();
+    /**
+     * The ends in the order the tabs show them.
+     *
+     * <p>Held so a language change can rename the tabs. The end names are venue
+     * data rather than keys, so nothing else knows which tab is which.
+     */
+    private final List<SeatSection> sectionTabSections = new ArrayList<>();
+    private final JLabel vacancyValue = new JLabel();
+    private final JLabel lastSeatValue = new JLabel(Messages.get("seatMap.priceGuide"));
+    private JLabel seatMapTitle;
+    private JLabel hintLabel;
+    private int keyboardRow = 1;
+    private int keyboardNumber = 1;
+    private String renderedStadiumId;
+    private String renderedEventId;
+
+    public SeatMapPanel(BookingService bookingService,
+                 Consumer<Seat> seatToggledListener,
+                 Runnable selectionChangedListener,
+                 Consumer<String> messageListener) {
+        this.bookingService = bookingService;
+        this.holdService = new SeatHoldService(bookingService);
+        this.seatToggledListener = seatToggledListener;
+        this.selectionChangedListener = selectionChangedListener;
+        this.messageListener = messageListener;
+
+        setLayout(new BorderLayout(0, 6));
+        setOpaque(false);
+        setMinimumSize(new Dimension(360, 240));
+        setPreferredSize(new Dimension(620, 340));
+        // Capped so the map cannot grow to fill whatever height the window
+        // happens to have, which is what pushed the price outline off screen.
+        setMaximumSize(new Dimension(Integer.MAX_VALUE, 420));
+        add(buildMapHeader(), BorderLayout.NORTH);
+        // The tabs sit in a NORTH slot behind a glue panel rather than in
+        // BorderLayout.CENTER. A centre slot is always stretched to fill the
+        // space it is given, and its maximum size is ignored, which is exactly
+        // what made the map grow down the whole screen. In a north slot the tabs
+        // take their own height and the glue below soaks up whatever is left.
+        JPanel mapHolder = new JPanel(new BorderLayout());
+        mapHolder.setOpaque(false);
+        mapHolder.add(buildSectionTabs(), BorderLayout.NORTH);
+        JPanel glue = new JPanel();
+        glue.setOpaque(false);
+        mapHolder.add(glue, BorderLayout.CENTER);
+        mapHolder.setMaximumSize(new Dimension(Integer.MAX_VALUE,
+                MAX_CANVAS_HEIGHT + 40));
+        add(mapHolder, BorderLayout.CENTER);
+        add(buildLegend(), BorderLayout.SOUTH);
+        refreshStatuses();
+    }
+
+    private JPanel buildMapHeader() {
+        JPanel header = new JPanel(new BorderLayout(12, 0));
+        header.setOpaque(false);
+        JPanel copy = new JPanel(new GridBagLayout());
+        copy.setOpaque(false);
+        GridBagConstraints constraints = new GridBagConstraints();
+        constraints.anchor = GridBagConstraints.WEST;
+        JLabel title = new JLabel(Messages.get("booking.selectSeat"));
+        seatMapTitle = title;
+        title.setForeground(new Color(30, 64, 110));
+        title.setFont(title.getFont().deriveFont(Font.BOLD, 11f));
+        copy.add(title, constraints);
+        JLabel hint = new JLabel(Messages.get("seatMap.hint"));
+        hintLabel = hint;
+        hint.setForeground(new Color(100, 116, 139));
+        hint.setFont(hint.getFont().deriveFont(Font.PLAIN, 10f));
+        constraints.gridy = 1;
+        constraints.insets = new Insets(2, 0, 0, 0);
+        copy.add(hint, constraints);
+
+        vacancyValue.setForeground(SUCCESS_FOREGROUND);
+        vacancyValue.setFont(vacancyValue.getFont().deriveFont(Font.BOLD, 12f));
+        vacancyValue.setHorizontalAlignment(SwingConstants.RIGHT);
+        header.add(copy, BorderLayout.CENTER);
+        header.add(vacancyValue, BorderLayout.EAST);
+        return header;
+    }
+
+    private JTabbedPane buildSectionTabs() {
+        sectionTabs.setFont(sectionTabs.getFont().deriveFont(Font.BOLD, 11f));
+        sectionTabs.setBackground(MAP_BACKGROUND);
+        sectionTabs.setTabLayoutPolicy(JTabbedPane.SCROLL_TAB_LAYOUT);
+        // The tabbed pane is the map's centre slot, so without a maximum the
+        // layout stretches it down the screen however small the cells are.
+        sectionTabs.setMaximumSize(new Dimension(Integer.MAX_VALUE,
+                MAX_CANVAS_HEIGHT + 40));
+        sectionTabs.getAccessibleContext().setAccessibleName(Messages.get("seatMap.sections"));
+        sectionTabs.getAccessibleContext().setAccessibleDescription(
+                "Four seating sections. Use the arrow keys to move between seats "
+                        + "and Enter to hold one.");
+        sectionTabs.setFocusTraversalKeysEnabled(false);
+        installSeatKeyBindings(sectionTabs);
+        sectionTabs.getInputMap(WHEN_ANCESTOR_OF_FOCUSED_COMPONENT)
+                .put(KeyStroke.getKeyStroke(Messages.get("seatMap.keyUp")), "stadium.seat.up");
+        sectionTabs.getInputMap(WHEN_ANCESTOR_OF_FOCUSED_COMPONENT)
+                .put(KeyStroke.getKeyStroke(Messages.get("seatMap.keyDown")), "stadium.seat.down");
+        sectionTabs.getInputMap(WHEN_ANCESTOR_OF_FOCUSED_COMPONENT)
+                .put(KeyStroke.getKeyStroke(Messages.get("seatMap.keyLeft")), "stadium.seat.left");
+        sectionTabs.getInputMap(WHEN_ANCESTOR_OF_FOCUSED_COMPONENT)
+                .put(KeyStroke.getKeyStroke(Messages.get("seatMap.keyRight")), "stadium.seat.right");
+        sectionTabs.getInputMap(WHEN_ANCESTOR_OF_FOCUSED_COMPONENT)
+                .put(KeyStroke.getKeyStroke(Messages.get("seatMap.keyEnter")), "stadium.seat.hold");
+        sectionTabs.getInputMap(WHEN_ANCESTOR_OF_FOCUSED_COMPONENT)
+                .put(KeyStroke.getKeyStroke(Messages.get("seatMap.keySpace")), "stadium.seat.hold");
+        sectionTabs.getActionMap().put("stadium.seat.up",
+                new AbstractAction() {
+                    @Override
+                    public void actionPerformed(java.awt.event.ActionEvent event) {
+                        moveKeyboardCaret(-1, 0);
+                    }
+                });
+        sectionTabs.getActionMap().put("stadium.seat.down",
+                new AbstractAction() {
+                    @Override
+                    public void actionPerformed(java.awt.event.ActionEvent event) {
+                        moveKeyboardCaret(1, 0);
+                    }
+                });
+        sectionTabs.getActionMap().put("stadium.seat.left",
+                new AbstractAction() {
+                    @Override
+                    public void actionPerformed(java.awt.event.ActionEvent event) {
+                        moveKeyboardCaret(0, -1);
+                    }
+                });
+        sectionTabs.getActionMap().put("stadium.seat.right",
+                new AbstractAction() {
+                    @Override
+                    public void actionPerformed(java.awt.event.ActionEvent event) {
+                        moveKeyboardCaret(0, 1);
+                    }
+                });
+        sectionTabs.getActionMap().put("stadium.seat.hold",
+                new AbstractAction() {
+                    @Override
+                    public void actionPerformed(java.awt.event.ActionEvent event) {
+                        toggleKeyboardSeat();
+                    }
+                });
+        return sectionTabs;
+    }
+
+    /**
+     * Binds the seat navigation keys on a component that takes focus.
+     *
+     * <p>These are installed on the canvas itself rather than only on the tabbed
+     * pane: the scroll pane wrapping each canvas also wants the arrow keys for
+     * scrolling, and a binding on an ancestor is not reliably reached first.
+     */
+    private void installSeatKeyBindings(javax.swing.JComponent component) {
+        javax.swing.KeyStroke[] moves = {
+                javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_UP, 0),
+                javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_DOWN, 0),
+                javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_LEFT, 0),
+                javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_RIGHT, 0)};
+        String[] moveActions = {ACTION_UP, ACTION_DOWN, ACTION_LEFT, ACTION_RIGHT};
+        javax.swing.InputMap input = component.getInputMap(javax.swing.JComponent.WHEN_FOCUSED);
+        javax.swing.ActionMap actions = component.getActionMap();
+        for (int index = 0; index < moves.length; index++) {
+            input.put(moves[index], moveActions[index]);
+        }
+        input.put(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_ENTER, 0),
+                ACTION_HOLD);
+        input.put(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_SPACE, 0),
+                ACTION_HOLD);
+        actions.put(ACTION_UP, new javax.swing.AbstractAction() {
+            @Override
+            public void actionPerformed(java.awt.event.ActionEvent event) {
+                moveKeyboardCaret(-1, 0);
+            }
+        });
+        actions.put(ACTION_DOWN, new javax.swing.AbstractAction() {
+            @Override
+            public void actionPerformed(java.awt.event.ActionEvent event) {
+                moveKeyboardCaret(1, 0);
+            }
+        });
+        actions.put(ACTION_LEFT, new javax.swing.AbstractAction() {
+            @Override
+            public void actionPerformed(java.awt.event.ActionEvent event) {
+                moveKeyboardCaret(0, -1);
+            }
+        });
+        actions.put(ACTION_RIGHT, new javax.swing.AbstractAction() {
+            @Override
+            public void actionPerformed(java.awt.event.ActionEvent event) {
+                moveKeyboardCaret(0, 1);
+            }
+        });
+        actions.put(ACTION_HOLD, new javax.swing.AbstractAction() {
+            @Override
+            public void actionPerformed(java.awt.event.ActionEvent event) {
+                toggleKeyboardSeat();
+            }
+        });
+    }
+
+    /**
+     * Moves the keyboard caret around the seat grid. Arrow keys walk the seats,
+     * Enter or Space holds the seat, so booking works without a mouse.
+     */
+    private void moveKeyboardCaret(int rowDelta, int numberDelta) {
+        SeatSection section = currentSection();
+        if (section == null) {
+            return;
+        }
+        keyboardRow = Math.max(1, Math.min(section.getRows(), keyboardRow + rowDelta));
+        keyboardNumber = Math.max(1, Math.min(section.getSeatsPerRow(), keyboardNumber + numberDelta));
+        announceKeyboardSeat(section);
+        SeatCanvas active = canvases.get(section.getId());
+        if (active != null) {
+            active.repaint();
+        }
+        repaint();
+    }
+
+    private void announceKeyboardSeat(SeatSection section) {
+        SeatKey key = new SeatKey(section.getId(), keyboardRow, keyboardNumber);
+        Seat seat = bookingService.getSeat(key);
+        if (seat == null) {
+            return;
+        }
+        String state = bookingService.isBooked(key) ? "booked"
+                : selectedSeats.contains(key) ? "selected" : "vacant";
+        String text = String.format(Locale.US,
+                "Section %s %s, row %d, seat %d, %s, %s",
+                section.getId(), VenueWords.sectionName(section.getId(), section.getLabel()),
+                keyboardRow, keyboardNumber, state,
+                currency(seat.getPrice()));
+        lastSeatValue.setText(text);
+        if (messageListener != null) {
+            messageListener.accept(text);
+        }
+    }
+
+    private void toggleKeyboardSeat() {
+        SeatSection section = currentSection();
+        if (section == null) {
+            return;
+        }
+        SeatKey key = new SeatKey(section.getId(), keyboardRow, keyboardNumber);
+        Seat seat = bookingService.getSeat(key);
+        if (seat != null) {
+            handleSeatClick(seat);
+        }
+    }
+
+    private SeatSection currentSection() {
+        Stadium stadium = bookingService.getActiveStadium();
+        int index = sectionTabs.getSelectedIndex();
+        if (stadium == null || index < 0 || index >= stadium.getSections().size()) {
+            return null;
+        }
+        return stadium.getSections().get(index);
+    }
+
+    private JPanel buildLegend() {
+        JPanel legend = new JPanel(new FlowLayout(FlowLayout.LEFT, 12, 0));
+        legend.setOpaque(false);
+        legendLabelRefs.clear();
+        legend.add(legendItem(LEGEND_KEYS[0], AVAILABLE_BACKGROUND, AVAILABLE_FOREGROUND));
+        legend.add(legendItem(LEGEND_KEYS[1], SELECTED_BACKGROUND, SELECTED_FOREGROUND));
+        legend.add(legendItem(LEGEND_KEYS[2], HELD_BACKGROUND, HELD_FOREGROUND));
+        legend.add(legendItem(LEGEND_KEYS[3], BOOKED_BACKGROUND, BOOKED_FOREGROUND));
+        legend.add(legendItem(LEGEND_KEYS[4], CLOSED_BACKGROUND, CLOSED_FOREGROUND));
+        legend.add(Box.createHorizontalStrut(8));
+        lastSeatValue.setForeground(new Color(71, 85, 105));
+        lastSeatValue.setFont(lastSeatValue.getFont().deriveFont(Font.PLAIN, 10f));
+        legend.add(lastSeatValue);
+        return legend;
+    }
+
+    /** The message keys behind the legend, in display order. */
+    private static final String[] LEGEND_KEYS = {
+            "legend.vacant", "legend.selected", "legend.held", "legend.booked", "legend.closed"};
+
+    private JPanel legendItem(String messageKey, Color background, Color foreground) {
+        JPanel item = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
+        item.setOpaque(false);
+        JLabel swatch = new JLabel("  ");
+        swatch.setOpaque(true);
+        swatch.setBackground(background);
+        swatch.setBorder(BorderFactory.createLineBorder(foreground));
+        swatch.setPreferredSize(new Dimension(17, 13));
+        JLabel label = new JLabel(Messages.get(messageKey));
+        label.setName(messageKey);
+        label.setForeground(new Color(71, 85, 105));
+        label.setFont(label.getFont().deriveFont(Font.PLAIN, 10f));
+        item.add(swatch);
+        item.add(label);
+        legendLabelRefs.put(item, messageKey);
+        return item;
+    }
+
+    private final Map<JPanel, String> legendLabelRefs = new LinkedHashMap<>();
+
+    /**
+     * Re-reads every label this panel owns after the language changes, so the
+     * seat map does not stay in the language it was built with.
+     */
+    public void retranslate() {
+        if (seatMapTitle != null) {
+            seatMapTitle.setText(Messages.get("booking.selectSeat"));
+        }
+        lastSeatValue.setText(selectedSeats.isEmpty()
+                ? Messages.get("seatMap.priceGuide")
+                : lastSeatValue.getText().replaceAll("\s*\u2022\s*.*$", ""));
+        for (Map.Entry<JPanel, String> entry : legendLabelRefs.entrySet()) {
+            for (java.awt.Component child : entry.getKey().getComponents()) {
+                if (child instanceof JLabel label && label.getName() != null
+                        && !label.getName().isEmpty()) {
+                    label.setText(Messages.get(label.getName()));
+                }
+            }
+        }
+        if (hintLabel != null) {
+            hintLabel.setText(Messages.get("seatMap.hint"));
+        }
+        // The end names come from the venue data, so they are not keys and are
+        // not covered by the loop above. The tabs carry them, which is why a
+        // language switch used to leave "VIP Box" and "Main Stand" in English
+        // above a screen that was otherwise in Luganda.
+        if (sectionTabs != null && sectionTabSections != null) {
+            for (int index = 0; index < sectionTabSections.size()
+                    && index < sectionTabs.getTabCount(); index++) {
+                SeatSection section = sectionTabSections.get(index);
+                sectionTabs.setTitleAt(index, section.getId() + "  •  "
+                        + VenueWords.sectionName(section.getId(), section.getLabel()));
+            }
+        }
+        revalidate();
+        repaint();
+    }
+
+    void refreshStatuses() {
+        Stadium stadium = bookingService.getActiveStadium();
+        StadiumEvent event = bookingService.getActiveEvent();
+        if (stadium == null || event == null) {
+            return;
+        }
+
+        boolean stadiumChanged = !stadium.getId().equals(renderedStadiumId);
+        boolean eventChanged = !event.getId().equals(renderedEventId);
+        if (stadiumChanged) {
+            rebuildCanvases(stadium);
+        }
+        if (stadiumChanged || eventChanged) {
+            selectedSeats.clear();
+        }
+        renderedStadiumId = stadium.getId();
+        renderedEventId = event.getId();
+        bookedSeats.clear();
+        bookedSeats.addAll(bookingService.getBookedSeatKeys(event));
+        heldSeats = holdService.allHeldKeys(event);
+        int selectedBeforeRefresh = selectedSeats.size();
+        selectedSeats.removeAll(bookedSeats);
+        boolean removedSelectedSeat = selectedBeforeRefresh != selectedSeats.size();
+
+        updateVacancyReadout(event);
+        if (selectedSeats.isEmpty()) {
+            lastSeatValue.setText(priceGuide());
+        }
+        for (SeatCanvas canvas : canvases.values()) {
+            canvas.refresh();
+        }
+        if (selectionChangedListener != null && (stadiumChanged || eventChanged || removedSelectedSeat)) {
+            selectionChangedListener.run();
+        }
+    }
+
+    private void rebuildCanvases(Stadium stadium) {
+        sectionTabs.removeAll();
+        sectionTabSections.clear();
+        canvases.clear();
+        StadiumShape shape = stadium.getShape();
+        for (SeatSection section : stadium.getSections()) {
+            SeatCanvas canvas = new SeatCanvas(section, shape);
+            canvases.put(section.getId(), canvas);
+            JScrollPane scroll = new JScrollPane(canvas);
+            scroll.setBorder(BorderFactory.createEmptyBorder());
+            scroll.getViewport().setBackground(MAP_BACKGROUND);
+            scroll.getVerticalScrollBar().setUnitIncrement(20);
+            scroll.getHorizontalScrollBar().setUnitIncrement(20);
+            // The scroll pane is the visible box, so it is capped in height. Both
+            // a preferred size and a maximum are needed: a preferred size alone
+            // is ignored when the parent layout hands the pane all the height
+            // left over, and it then scrolls a screenful of rows at once.
+            int visibleHeight = Math.min(canvas.getPreferredSize().height,
+                    MAX_CANVAS_HEIGHT);
+            scroll.getViewport().setPreferredSize(new Dimension(
+                    Math.min(canvas.getPreferredSize().width, 700), visibleHeight));
+            scroll.setMaximumSize(new Dimension(Integer.MAX_VALUE,
+                    visibleHeight + 30));
+            sectionTabs.addTab(section.getId() + "  •  "
+                    + VenueWords.sectionName(section.getId(), section.getLabel()), scroll);
+            sectionTabSections.add(section);
+        }
+        sectionTabs.setSelectedIndex(0);
+        sectionTabs.revalidate();
+        sectionTabs.repaint();
+    }
+
+    private void handleSeatClick(Seat seat) {
+        if (seat == null) {
+            return;
+        }
+        SeatKey key = seat.getKey();
+        String status = statusLabel(key);
+        lastSeatValue.setText(key.display() + "  •  " + status + "  •  " + currency(seat.getPrice()));
+        if (!bookingService.isSeatSelectable(key)) {
+            if (messageListener != null) {
+                messageListener.accept(Messages.get("seatMap.seat") + " " + key.display() + " " + Messages.get("seatMap.is") + " " + status.toLowerCase(Locale.ENGLISH));
+            }
+            return;
+        }
+        if (holdService.isHeldByAnother(key, bookingService.getActiveEvent(), holdOwner)) {
+            if (messageListener != null) {
+                messageListener.accept(Messages.get("seatMap.seat") + " " + key.display()
+                        + " is being held by another customer for a few more minutes");
+            }
+            return;
+        }
+        toggleSeat(seat);
+    }
+
+    private void toggleSeat(Seat seat) {
+        SeatKey key = seat.getKey();
+        if (!bookingService.isSeatSelectable(key)) {
+            return;
+        }
+        if (selectedSeats.contains(key)) {
+            selectedSeats.remove(key);
+            holdService.release(key);
+            lastSeatValue.setText(key.display() + "  •  Removed  •  " + currency(seat.getPrice()));
+        } else {
+            if (selectedSeats.size() >= BookingService.MAX_SEATS_PER_BOOKING) {
+                if (messageListener != null) {
+                    messageListener.accept("Up to " + BookingService.MAX_SEATS_PER_BOOKING
+                            + " seats per reservation; booking count is unlimited per person");
+                }
+                return;
+            }
+            String refusal = holdService.hold(key, bookingService.getActiveEvent(), holdOwner);
+            if (refusal != null) {
+                if (messageListener != null) {
+                    messageListener.accept(refusal);
+                }
+                return;
+            }
+            selectedSeats.add(key);
+            lastSeatValue.setText(key.display() + "  •  Held for you  •  " + currency(seat.getPrice()));
+        }
+        // The hold has just changed, so the free-seat count has too.
+        heldSeats = holdService.allHeldKeys(bookingService.getActiveEvent());
+        updateVacancyReadout(bookingService.getActiveEvent());
+        for (SeatCanvas canvas : canvases.values()) {
+            canvas.repaint();
+        }
+        if (seatToggledListener != null) {
+            seatToggledListener.accept(seat);
+        }
+        if (selectionChangedListener != null) {
+            selectionChangedListener.run();
+        }
+    }
+
+    private String statusLabel(SeatKey key) {
+        if (!bookingService.isBookingOpen(bookingService.getActiveEvent())) {
+            return Messages.get("seatMap.bookingClosed");
+        }
+        SeatStatus status = bookingService.getStatus(key);
+        if (status == SeatStatus.BOOKED) {
+            return Messages.get("seatMap.booked");
+        }
+        if (status == SeatStatus.BLOCKED) {
+            return Messages.get("seatMap.unavailable");
+        }
+        if (selectedSeats.contains(key)) {
+            return Messages.get("seatMap.selected");
+        }
+        return heldSeats.contains(key) ? Messages.get("seatMap.held") : Messages.get("seatMap.vacant");
+    }
+
+    /** Who owns the holds placed through this panel, normally one browsing session. */
+    public void setHoldOwner(String owner) {
+        this.holdOwner = owner == null ? "customer" : owner;
+    }
+
+    public SeatHoldService getHoldService() {
+        return holdService;
+    }
+
+    // ---- Keyboard access, exposed so the behaviour can be tested directly ----
+
+    /** Where the arrow keys currently are. */
+    public SeatKey getKeyboardCaret() {
+        SeatSection section = currentSection();
+        return section == null ? null
+                : new SeatKey(section.getId(), keyboardRow, keyboardNumber);
+    }
+
+    /** The seat description last shown to the user, for screen readers. */
+    public String getAnnouncedSeat() {
+        return lastSeatValue.getText();
+    }
+
+    /** The canvas for a section, which must be focusable to take key presses. */
+    /**
+     * Selects a seat the way a click on the map does, including the hold and the
+     * availability rules. Exposed so a test can drive the map through the same
+     * path a customer takes, rather than poking at the selection directly.
+     *
+     * @return true when the seat ended up selected
+     */
+    public boolean selectSeatByKey(SeatKey key) {
+        Seat seat = bookingService.getSeat(key);
+        if (seat == null) {
+            return false;
+        }
+        int before = selectedSeats.size();
+        handleSeatClick(seat);
+        return selectedSeats.size() != before && selectedSeats.contains(key);
+    }
+
+    public BookingService getBookingService() {
+        return bookingService;
+    }
+
+    public java.awt.Component getSectionCanvas(String sectionId) {
+        return canvases.get(sectionId);
+    }
+
+    /**
+     * Fires one of the seat navigation actions as if the key had been pressed.
+     * Returns false when the action is not installed.
+     */
+    public boolean fireKeyboardAction(String actionKey) {
+        javax.swing.Action action = sectionTabs.getActionMap().get(actionKey);
+        if (action == null) {
+            return false;
+        }
+        action.actionPerformed(new java.awt.event.ActionEvent(this, ActionEvent.ACTION_PERFORMED,
+                actionKey));
+        return true;
+    }
+
+    /** The action keys bound to the seat grid. */
+    public static final String ACTION_UP = "stadium.seat.up";
+    public static final String ACTION_DOWN = "stadium.seat.down";
+    public static final String ACTION_LEFT = "stadium.seat.left";
+    public static final String ACTION_RIGHT = "stadium.seat.right";
+    public static final String ACTION_HOLD = "stadium.seat.hold";
+
+    /** Seconds left on this seat's hold, or 0 when there is none. */
+    long holdSecondsRemaining(SeatKey key) {
+        return holdService.secondsRemaining(key);
+    }
+
+    /**
+     * Chooses a set of seats, ignoring any that have since been sold, so a saved
+     * selection can be picked up again.
+     *
+     * @return how many of the seats were still available
+     */
+    public int setSelectedKeys(List<SeatKey> keys) {
+        if (keys == null) {
+            return 0;
+        }
+        Stadium stadium = bookingService.getActiveStadium();
+        StadiumEvent event = bookingService.getActiveEvent();
+        if (stadium == null || event == null) {
+            return 0;
+        }
+        selectedSeats.clear();
+        holdService.releaseAllFor(holdOwner);
+        int restored = 0;
+        for (SeatKey key : keys) {
+            if (!bookingService.isSeatSelectable(key)) {
+                continue;
+            }
+            if (holdService.hold(key, event, holdOwner) != null) {
+                continue;
+            }
+            selectedSeats.add(key);
+            restored++;
+        }
+        if (!selectedSeats.isEmpty()) {
+            lastSeatValue.setText(selectedSeats.size() + " seat"
+                    + (selectedSeats.size() == 1 ? "" : "s") + " picked up from your saved list");
+        }
+        repaint();
+        return restored;
+    }
+
+    public List<Seat> getSelectedSeats() {
+        List<Seat> seats = new ArrayList<>();
+        for (SeatKey key : selectedSeats) {
+            Seat seat = bookingService.getSeat(key);
+            if (seat != null) {
+                seats.add(seat);
+            }
+        }
+        return seats;
+    }
+
+    public void clearSelection() {
+        if (selectedSeats.isEmpty()) {
+            return;
+        }
+        selectedSeats.clear();
+        holdService.releaseAllFor(holdOwner);
+        heldSeats = holdService.allHeldKeys(bookingService.getActiveEvent());
+        updateVacancyReadout(bookingService.getActiveEvent());
+        lastSeatValue.setText(priceGuide());
+        for (SeatCanvas canvas : canvases.values()) {
+            canvas.repaint();
+        }
+        if (selectionChangedListener != null) {
+            selectionChangedListener.run();
+        }
+    }
+
+    /**
+     * Rewrites the free-seat count shown in this panel's header.
+     *
+     * <p>Counted from the seats actually free to pick, not from sales alone. A
+     * seat the customer is holding right now is not available to anyone else, so
+     * leaving it out of the figure left the panel claiming a full house while a
+     * seat on the screen was already taken. Called on every selection change, not
+     * only when statuses are rebuilt, or it would go stale after each pick.
+     */
+    private void updateVacancyReadout(StadiumEvent event) {
+        int total = bookingService.getTotalSeatCount(event);
+        int free = 0;
+        Stadium stadium = bookingService.getActiveStadium();
+        if (stadium == null) {
+            return;
+        }
+        for (SeatSection section : stadium.getSections()) {
+            for (int row = 1; row <= section.getRows(); row++) {
+                for (int number = 1; number <= section.getSeatsPerRow(); number++) {
+                    SeatKey key = new SeatKey(section.getId(), row, number);
+                    if (!bookedSeats.contains(key) && !heldSeats.contains(key)) {
+                        free++;
+                    }
+                }
+            }
+        }
+        double vacancy = total == 0 ? 0.0 : free * 100.0 / total;
+        vacancyValue.setText(String.format(Locale.US, "%,d of %,d seats free  (%.3f%%)",
+                free, total, vacancy));
+        vacancyValue.setForeground(vacancy <= 10.0
+                ? new Color(180, 83, 9) : SUCCESS_FOREGROUND);
+    }
+
+    private String priceGuide() {
+        Stadium stadium = bookingService.getActiveStadium();
+        if (stadium == null || stadium.getSections().isEmpty()) {
+            return Messages.get("seatMap.pricesFall");
+        }
+        double front = Double.MAX_VALUE;
+        double back = Double.MAX_VALUE;
+        for (SeatSection section : stadium.getSections()) {
+            front = Math.min(front, bookingService.getSeatPrice(section, 1));
+            back = Math.min(back, bookingService.getSeatPrice(section, section.getRows()));
+        }
+        return Messages.get("seatMap.frontFrom", currency(front), currency(back));
+    }
+
+    private String currency(double value) {
+        return BookingService.formatMoney(value);
+    }
+
+    private final class SeatCanvas extends JPanel {
+        private final SeatSection section;
+        private final StadiumShape shape;
+        private int hoveredRow = -1;
+        private int hoveredNumber = -1;
+
+        SeatCanvas(SeatSection section, StadiumShape shape) {
+            this.section = section;
+            this.shape = shape;
+            setOpaque(true);
+            setBackground(MAP_BACKGROUND);
+            setBorder(BorderFactory.createEmptyBorder());
+            // The full grid is what the canvas paints, but it is capped in height so a
+            // 130-row end scrolls inside the panel instead of stretching it.
+            int width = ROW_LABEL_WIDTH + section.getSeatsPerRow()
+                    * (CELL_WIDTH + CELL_GAP) + 16;
+            int height = MAP_TOP + section.getRows() * (CELL_HEIGHT + CELL_GAP) + 16;
+            setPreferredSize(new Dimension(width, Math.min(height, MAX_CANVAS_HEIGHT)));
+            setMaximumSize(new Dimension(Integer.MAX_VALUE, MAX_CANVAS_HEIGHT));
+            setCursor(Cursor.getDefaultCursor());
+            // Stated explicitly rather than relied on from the JPanel default,
+            // because the whole keyboard path depends on this canvas taking focus.
+            setFocusable(true);
+            setFocusTraversalKeysEnabled(false);
+            getAccessibleContext().setAccessibleName("Seat map, section " + section.getId());
+            getAccessibleContext().setAccessibleDescription(
+                    Messages.get("seatMap.nameHint"));
+            installSeatKeyBindings(this);
+            addFocusListener(new FocusAdapter() {
+                @Override
+                public void focusGained(FocusEvent event) {
+                    announceKeyboardSeat(section);
+                    repaint();
+                }
+
+                @Override
+                public void focusLost(FocusEvent event) {
+                    repaint();
+                }
+            });
+            addMouseListener(new MouseAdapter() {
+                @Override
+                public void mousePressed(MouseEvent event) {
+                    SeatCanvas canvas = (SeatCanvas) event.getSource();
+                    SeatKey key = canvas.keyAt(event.getX(), event.getY());
+                    if (key != null) {
+                        canvas.requestFocusInWindow();
+                        // Keep the keyboard caret on the seat just used, so
+                        // arrowing on from here starts where the pointer left off.
+                        keyboardRow = key.getRow();
+                        keyboardNumber = key.getNumber();
+                        canvas.handleClick(key);
+                    }
+                }
+            });
+            addMouseMotionListener(new MouseAdapter() {
+                @Override
+                public void mouseMoved(MouseEvent event) {
+                    SeatCanvas canvas = (SeatCanvas) event.getSource();
+                    canvas.hoveredRow = rowAt(event.getY());
+                    canvas.hoveredNumber = numberAt(event.getX());
+                    canvas.setCursor(hoveredRow > 0 ? Cursor.getPredefinedCursor(Cursor.HAND_CURSOR)
+                            : Cursor.getDefaultCursor());
+                    SeatKey key = canvas.keyAt(event.getX(), event.getY());
+                    canvas.setToolTipText(key == null ? null : key.display() + "  •  "
+                            + statusLabel(key) + "  •  " + currency(bookingService.getSeatPrice(key)));
+                }
+
+                @Override
+                public void mouseExited(MouseEvent event) {
+                    SeatCanvas canvas = (SeatCanvas) event.getSource();
+                    canvas.hoveredRow = -1;
+                    canvas.hoveredNumber = -1;
+                    canvas.setCursor(Cursor.getDefaultCursor());
+                    canvas.setToolTipText(null);
+                    canvas.repaint();
+                }
+            });
+        }
+
+        private void handleClick(SeatKey key) {
+            Seat seat = bookingService.getSeat(key);
+            if (seat != null) {
+                handleSeatClick(seat);
+            }
+        }
+
+        private int rowAt(int y) {
+            int row = (y - MAP_TOP) / (CELL_HEIGHT + CELL_GAP) + 1;
+            return row >= 1 && row <= section.getRows() ? row : -1;
+        }
+
+        private int numberAt(int x) {
+            int number = (x - ROW_LABEL_WIDTH) / (CELL_WIDTH + CELL_GAP) + 1;
+            return number >= 1 && number <= section.getSeatsPerRow() ? number : -1;
+        }
+
+        private SeatKey keyAt(int x, int y) {
+            int row = rowAt(y);
+            int number = numberAt(x);
+            if (row < 1 || number < 1) {
+                return null;
+            }
+            int cellX = ROW_LABEL_WIDTH + (number - 1) * (CELL_WIDTH + CELL_GAP);
+            int cellY = MAP_TOP + (row - 1) * (CELL_HEIGHT + CELL_GAP);
+            if (x < cellX || x > cellX + CELL_WIDTH || y < cellY || y > cellY + CELL_HEIGHT) {
+                return null;
+            }
+            return new SeatKey(section.getId(), row, number);
+        }
+
+        private void refresh() {
+            repaint();
+        }
+
+        @Override
+        protected void paintComponent(Graphics graphics) {
+            super.paintComponent(graphics);
+            Graphics2D g = (Graphics2D) graphics.create();
+            g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+
+            int width = getWidth();
+            int height = getHeight();
+            drawOutline(g, width, height);
+            drawPitch(g, width);
+
+            g.setColor(new Color(100, 116, 139));
+            g.setFont(getFont().deriveFont(Font.BOLD, 9f));
+            g.drawString(section.getId() + "  "
+                    + VenueWords.sectionName(section.getId(), section.getLabel()), 12, 14);
+            g.setFont(getFont().deriveFont(Font.PLAIN, 7f));
+            g.drawString(Messages.get("seatMap.frontPremium"), 12, 25);
+            String middleTier = Messages.get("seatMap.middleStandard");
+            int middleWidth = g.getFontMetrics().stringWidth(middleTier);
+            g.drawString(middleTier, Math.max(120, (width - middleWidth) / 2), 25);
+            g.drawString(Messages.get("seatMap.backValue"), Math.max(110, width - 110), 25);
+
+            boolean closed = !bookingService.isBookingOpen(bookingService.getActiveEvent());
+            for (int row = 1; row <= section.getRows(); row++) {
+                int y = MAP_TOP + (row - 1) * (CELL_HEIGHT + CELL_GAP);
+                if (row == 1 || row % 10 == 0 || row == section.getRows()) {
+                    g.setColor(new Color(100, 116, 139));
+                    g.setFont(getFont().deriveFont(Font.PLAIN, 7f));
+                    g.drawString(String.valueOf(row), 8, y + CELL_HEIGHT - 2);
+                }
+                for (int number = 1; number <= section.getSeatsPerRow(); number++) {
+                    int x = ROW_LABEL_WIDTH + (number - 1) * (CELL_WIDTH + CELL_GAP);
+                    paintSeat(g, new SeatKey(section.getId(), row, number), x, y, closed);
+                }
+            }
+            g.dispose();
+        }
+
+        private void drawOutline(Graphics2D g, int width, int height) {
+            g.setColor(MAP_BORDER);
+            g.setStroke(new BasicStroke(2f));
+            if (shape == StadiumShape.CIRCULAR) {
+                g.draw(new Ellipse2D.Double(8, 6, Math.max(20, width - 16), Math.max(20, height - 12)));
+            } else if (shape == StadiumShape.OVAL) {
+                g.draw(new RoundRectangle2D.Double(8, 6, Math.max(20, width - 16),
+                        Math.max(20, height - 12), 80, 80));
+            } else {
+                g.drawRect(8, 6, Math.max(20, width - 17), Math.max(20, height - 13));
+            }
+        }
+
+        private void drawPitch(Graphics2D g, int width) {
+            int pitchWidth = Math.min(240, Math.max(120, width / 3));
+            int pitchX = Math.max(50, (width - pitchWidth) / 2);
+            g.setColor(PITCH_GREEN);
+            g.setStroke(new BasicStroke(1f));
+            g.draw(new RoundRectangle2D.Double(pitchX, 4, pitchWidth, 16, 8, 8));
+            g.setColor(new Color(31, 96, 57));
+            g.setFont(getFont().deriveFont(Font.BOLD, 7f));
+            String pitchText = shape == StadiumShape.CIRCULAR ? Messages.get("seatMap.circular") : Messages.get("seatMap.pitchStage");
+            int textWidth = g.getFontMetrics().stringWidth(pitchText);
+            g.drawString(pitchText, pitchX + (pitchWidth - textWidth) / 2, 15);
+        }
+
+        private void paintSeat(Graphics2D g, SeatKey key, int x, int y, boolean closed) {
+            boolean booked = bookedSeats.contains(key);
+            boolean selected = selectedSeats.contains(key);
+            boolean held = heldSeats.contains(key) && !selected;
+            Color background;
+            Color foreground;
+            if (held) {
+                background = HELD_BACKGROUND;
+                foreground = HELD_FOREGROUND;
+            } else if (booked) {
+                background = BOOKED_BACKGROUND;
+                foreground = BOOKED_FOREGROUND;
+            } else if (selected) {
+                background = SELECTED_BACKGROUND;
+                foreground = SELECTED_FOREGROUND;
+            } else if (closed) {
+                background = CLOSED_BACKGROUND;
+                foreground = CLOSED_FOREGROUND;
+            } else {
+                background = AVAILABLE_BACKGROUND;
+                foreground = AVAILABLE_FOREGROUND;
+            }
+            Rectangle rectangle = new Rectangle(x, y, CELL_WIDTH, CELL_HEIGHT);
+            g.setColor(background);
+            g.fillRoundRect(rectangle.x, rectangle.y, rectangle.width, rectangle.height, 4, 4);
+            // Booked seats get a deep rose outline so taken blocks stand out from
+            // vacant seats, which keep the neutral default outline.
+            g.setColor(booked ? BOOKED_FOREGROUND
+                    : selected ? SELECTED_FOREGROUND : SEAT_OUTLINE);
+            g.setStroke(new BasicStroke(selected ? 1.5f : 1f));
+            g.drawRoundRect(rectangle.x, rectangle.y, rectangle.width, rectangle.height, 4, 4);
+            // Seat numbers only every tenth, because the cells are now small enough that a
+            // number in each one turns the map into noise. The row labels on the
+            // left still carry the row, and the status line names any seat on click.
+            if (key.getNumber() == 1 || key.getNumber() % 10 == 0
+                    || key.getNumber() == section.getSeatsPerRow()) {
+                g.setColor(foreground);
+                g.setFont(getFont().deriveFont(Font.PLAIN, 6f));
+                String number = String.valueOf(key.getNumber());
+                int textWidth = g.getFontMetrics().stringWidth(number);
+                g.drawString(number, x + (CELL_WIDTH - textWidth) / 2, y + CELL_HEIGHT - 2);
+            }
+            // The keyboard caret is drawn as a dashed ring, so the seat the arrow
+            // keys are on is visible rather than only announced.
+            if (isFocusOwner() && keyboardRow == key.getRow()
+                    && keyboardNumber == key.getNumber()) {
+                g.setColor(new Color(37, 99, 235));
+                g.setStroke(new BasicStroke(1.4f, BasicStroke.CAP_BUTT,
+                        BasicStroke.JOIN_MITER, 8f, new float[]{3f, 3f}, 0f));
+                g.drawRoundRect(x - 3, y - 3, CELL_WIDTH + 6, CELL_HEIGHT + 6, 6, 6);
+                g.setStroke(new BasicStroke(1f));
+            }
+            if (hoveredRow == key.getRow() && hoveredNumber == key.getNumber()) {
+                g.setColor(new Color(37, 99, 235, 130));
+                g.drawRoundRect(x - 1, y - 1, CELL_WIDTH + 2, CELL_HEIGHT + 2, 5, 5);
+            }
+        }
+    }
+}

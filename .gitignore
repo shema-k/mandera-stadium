@@ -1,3 +1,4 @@
+# Compiled output and any stray .class files, wherever they land.
 build/
 *.class
 stadium-bookings.dat
@@ -5,8 +6,10 @@ stadium-bookings.dat
 *.trace.db
 *.lock.db
 
-# Database backups made by ./open-db.sh backup (contain customer data - never commit).
+# Database copies made by ./open-db.sh. They contain customer details in plain
+# text, so they are never committed.
 backups/
+stadium-select.properties
 
 # Venue photographs are supplied by whoever runs the application, and are third-party
 # images, so they are deliberately not committed. See photos/README.md.

@@ -1,5 +1,7 @@
 package com.stadium.booking;
 
+import com.stadium.booking.booking.FormRules;
+
 import static com.stadium.booking.TestRunner.assertEquals;
 import static com.stadium.booking.TestRunner.assertTrue;
 import static com.stadium.booking.TestRunner.suite;
