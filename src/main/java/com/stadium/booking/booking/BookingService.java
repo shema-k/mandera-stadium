@@ -152,12 +152,54 @@ public class BookingService {
         return stadium == null ? StadiumData.getStadium("namboole") : stadium;
     }
 
+    /**
+     * How much to multiply a seat's price by, given how far back it is.
+     *
+     * <p><b>The seat map's whole pricing in one method.</b> A seat costs more at
+     * the front and less at the back, and these four numbers are what make it so.
+     *
+     * <p>It works like this. First work out how far through the section the seat
+     * is, as a number between 0 and 1. Row 1 is 0.0 and the very last row is 1.0,
+     * so "position" always means the same thing no matter how deep the section
+     * is. A 130-row section and a 20-row section are treated the same way.
+     *
+     * <p>Then the price multiplier comes from which fifth of the section the row
+     * falls in:
+     *
+     * <pre>
+     *     front fifth   (0.00 - 0.20)   x1.40   most expensive
+     *     second fifth  (0.20 - 0.50)   x1.20
+     *     third fifth   (0.50 - 0.80)   x0.95
+     *     back fifth    (0.80 - 1.00)   x0.70   cheapest
+     * </pre>
+     *
+     * <p>So the multipliers only fall from 1.40 to 0.70. A seat in the back of
+     * the VIP box is 0.70 x 250,000 = UGX 175,000, which is still dearer than the
+     * front row of the cheapest end.
+     *
+     * <p>The Math.max and Math.min stop a row number outside the section — a
+     * typo, or a seat saved before the section changed — from producing a
+     * position below 0 or above 1, which would fall through every test and give
+     * the back-row price to a front-row seat.
+     *
+     * @param row   which row the seat is in, counting from 1
+     * @param rows  how many rows the section has
+     * @return the number to multiply the section's price by
+     */
     public static double getRowPriceMultiplier(int row, int rows) {
+        // A single row has no "back", so every seat is treated as being in the
+        // middle.
         if (rows <= 1) {
             return 1.0;
         }
+
+        // Keep the row inside the section, so the position below cannot go
+        // outside 0 to 1.
         int safeRow = Math.max(1, Math.min(row, rows));
+
+        // How far through the section this row is, from 0.0 to 1.0.
         double position = (safeRow - 1.0) / (rows - 1.0);
+
         if (position <= 0.20) {
             return 1.40;
         }
@@ -170,7 +212,14 @@ public class BookingService {
         return 0.70;
     }
 
-    /** Human-readable name of the price tier a row falls into. */
+    /**
+     * The name of the price tier a row falls into, for the legend on the screen.
+     *
+     * <p>Uses exactly the same four boundaries as getRowPriceMultiplier above, so
+     * the words "Front rows" and the price that goes with them always agree. If
+     * the two ever disagreed, the seat map would label a row one way and charge
+     * another.
+     */
     public String getRowTierName(int row, int rows) {
         if (rows <= 1) {
             return "Front rows";
@@ -189,8 +238,19 @@ public class BookingService {
     }
 
     /**
-     * Rounds a charge to the nearest 500 shillings, which is how Ugandan
-     * ticketing prices are normally rounded for cash sales.
+     * Rounds a charge to the nearest 500 shillings.
+     *
+     * <p>Ugandan ticket prices are normally written in round hundreds or
+     * thousands, and cash has to be given back in round notes, so a price of
+     * UGX 83,264 is not something anybody can hand over.
+     *
+     * <p>It works by dividing by 500 first, so 83,264 becomes 166.5. Rounding
+     * that gives 167, and multiplying by 500 again gives UGX 83,500.
+     *
+     * <p>Every price in the program goes through this, so the seat map, the
+     * receipt and the booking all show the same figure. Without one shared
+     * rounding rule they would each drift by a few shillings and the receipt
+     * would not add up to the seat map.
      */
     public static double roundMoney(double value) {
         return Math.round(value / 500.0) * 500.0;
@@ -724,10 +784,40 @@ public class BookingService {
         }
     }
 
+    /**
+     * Takes a booking: checks everything, then saves it and returns it.
+     *
+     * <p>"synchronized" means only one thread at a time can be inside this
+     * method. That is essential here. Two people can confirm at the same
+     * instant, and without it both could pass the "is this seat still free?"
+     * check below before either had recorded its answer — and one of them
+     * would arrive at the gate to find their seat already sold.
+     *
+     * <p>The checks run in six steps, and nothing is recorded until all six have
+     * passed. A refusal at any point leaves the seat map exactly as it was.
+     *
+     * <p><b>Step 1: is there an event, and is it still open?</b>
+     *
+     * <p><b>Step 2: are the contact details usable?</b>
+     *
+     * <p><b>Step 3: is every chosen seat a real, free seat of this stadium?</b>
+     *
+     * <p><b>Step 4: are there no more seats than the limit allows?</b>
+     *
+     * <p><b>Step 5: has any of them been sold in the last few seconds?</b> This
+     * is checked again even though step 3 did, because time passes in between.
+     *
+     * <p><b>Step 6: work out the total and save.</b>
+     *
+     * @return the booking that was taken
+     * @throws IllegalArgumentException if anything above does not pass
+     */
     public synchronized Booking book(String customerName,
                                       String email,
                                       String phone,
                                       List<Seat> selectedSeats) {
+
+        // ---- Step 1: an event, and it must still be open -----------------
         if (activeEvent == null) {
             throw new IllegalArgumentException("Choose an event before booking");
         }
@@ -739,14 +829,18 @@ public class BookingService {
         String normalizedEmail = email == null ? "" : email.trim();
         String normalizedPhone = phone == null ? "" : phone.trim();
 
-        // Same rules as validateCustomer, which is called before this when the details
-        // are collected in a dialog. Checked again here because this method is
-        // public and can be called without that dialog.
+        // ---- Step 2: the contact details ----------------------------------
+        // The same rules as validateCustomer, which the form has already used.
+        // Checked again because this method is public and could be called
+        // without ever showing that form.
         validateCustomer(customerName, email, phone);
+
         if (selectedSeats == null || selectedSeats.isEmpty()) {
             throw new IllegalArgumentException("Select at least one seat");
         }
 
+        // ---- Step 3: every chosen seat must be real and free --------------
+        // A Set is used so that picking the same seat twice counts as one.
         Set<SeatKey> selectedKeys = new LinkedHashSet<>();
         for (Seat seat : selectedSeats) {
             if (seat == null || !seatInventory.containsKey(seat.getKey())) {
@@ -759,18 +853,26 @@ public class BookingService {
             }
             selectedKeys.add(seat.getKey());
         }
+        // ---- Step 4: no more seats than the limit allows -------------------
         if (selectedKeys.size() > MAX_SEATS_PER_BOOKING) {
             throw new IllegalArgumentException("A reservation can contain up to "
                     + MAX_SEATS_PER_BOOKING + " seats");
         }
+
+        // ---- Step 5: has anything been sold in the last few seconds? ------
+        // Step 3 already looked, but the clock has moved on since then, and
+        // somebody else may have confirmed while this was being checked.
         for (SeatKey key : selectedKeys) {
             if (isBooked(key)) {
                 throw new IllegalArgumentException("Seat " + key.display() + " has just been booked");
             }
         }
 
-        // Customer identity is stored for the receipt and history only. There is intentionally
-        // no limit on how many reservations one person may create.
+        // ---- Step 6: work out the price and save -------------------------
+        // Customer identity is stored for the receipt and the history only.
+        // There is deliberately no limit on how many reservations one person may
+        // make.
+
         // Put the seats in order before saving, so the receipt always reads
         // "A1, A2, B4" rather than whichever order they were clicked in.
         List<SeatKey> keys = new ArrayList<>(selectedKeys);
