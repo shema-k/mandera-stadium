@@ -629,6 +629,12 @@ public final class StadiumBookingApp extends JFrame {
      * changing language must never discard the seats someone has chosen.
      */
     private void redrawCurrentScreen() {
+        // Each screen is redrawn by calling the same method that opened it. That
+        // way there is one way to build a screen rather than two that have to be
+        // kept in step by hand.
+        //
+        // currentScreen is set by those same methods, so it is also the record
+        // of which one is showing now.
         switch (currentScreen == null ? "" : currentScreen) {
             case "stadium":
                 showStadiumDirectory();
@@ -783,8 +789,13 @@ public final class StadiumBookingApp extends JFrame {
     }
 
     // ---------------------------------------------------------------------
-    // Stadium
     // ---------------------------------------------------------------------
+    // Stadium: the front door. The schedule, and the notices beside it.
+    //
+    // This is the screen the program opens on. It shows what is coming up at
+    // Namboole, lets somebody filter it by date or search it, and shows the
+    // notices. Everything else is reached from here.
+    // ---------------------------------------------------------------------    // ---------------------------------------------------------------------
 
     /**
      * The front screen. This system books one stadium, so rather than asking the
@@ -855,8 +866,14 @@ public final class StadiumBookingApp extends JFrame {
     }
 
     // ---------------------------------------------------------------------
-    // Stadium details
     // ---------------------------------------------------------------------
+    // Stadium details: everything known about the one venue.
+    //
+    // Capacity, the shape of the ground, the seating sections with their prices,
+    // and what is on over the next few weeks. Everything on this screen comes
+    // from StadiumDetails, which works the figures out from the facts rather
+    // than storing them, so the page cannot disagree with the data.
+    // ---------------------------------------------------------------------    // ---------------------------------------------------------------------
 
     /**
      * Everything the application knows about one venue, in one screen.
@@ -1316,8 +1333,14 @@ public final class StadiumBookingApp extends JFrame {
     }
 
     // ---------------------------------------------------------------------
-    // Event details
     // ---------------------------------------------------------------------
+    // Event details: one game or concert, and the seat map for it.
+    //
+    // This screen also carries the booking controls, because the seat map and
+    // the Confirm button have to sit together. The chosen seats live in
+    // seatMapPanel and stay there while this screen is being rebuilt, so a
+    // selection is never lost by the screen redrawing.
+    // ---------------------------------------------------------------------    // ---------------------------------------------------------------------
 
     /**
      * Everything about one event, with the way to book it.
@@ -1805,8 +1828,13 @@ private void confirmBookingHere(StadiumEvent event) {
     }
 
     // ---------------------------------------------------------------------
-    // Saved selections: choose now, finish later
     // ---------------------------------------------------------------------
+    // Saved selections: seats noted down but not yet bought.
+    //
+    // Saving is not booking and does not hold the seat, which the screen says
+    // plainly. It exists so somebody can note down what they want and come back
+    // to it, which would otherwise be impossible with no accounts to log in to.
+    // ---------------------------------------------------------------------    // ---------------------------------------------------------------------
 
     /**
      * Saves the seats currently chosen so they can be picked up again later.
@@ -2067,8 +2095,13 @@ private void confirmBookingHere(StadiumEvent event) {
     }
 
     // ---------------------------------------------------------------------
-    // Stadium schedule
     // ---------------------------------------------------------------------
+    // Stadium schedule: the list of events, built one card at a time.
+    //
+    // Each card is built by createEventCard() and the list is put together by
+    // createScheduleCard(). Splitting it that way keeps any one method short
+    // enough to read in one go.
+    // ---------------------------------------------------------------------    // ---------------------------------------------------------------------
 
     private JPanel buildStadiumDashboard(Stadium stadium) {
         JPanel page = new JPanel(new BorderLayout(0, 16));
@@ -2667,8 +2700,13 @@ private void confirmBookingHere(StadiumEvent event) {
     }
 
     // ---------------------------------------------------------------------
-    // Live schedules (cross-venue)
     // ---------------------------------------------------------------------
+    // Live schedules: everything at every venue, with search.
+    //
+    // Reached from the stadium page. Only one venue exists at the moment, but
+    // this screen is written to cope with more, which is why it asks the data
+    // for all of them rather than assuming one.
+    // ---------------------------------------------------------------------    // ---------------------------------------------------------------------
 
     /**
      * Shows every upcoming game and concert at Namboole, soonest first, so a
@@ -2906,8 +2944,16 @@ private void confirmBookingHere(StadiumEvent event) {
     }
 
     // ---------------------------------------------------------------------
-    // Booking screen
     // ---------------------------------------------------------------------
+    // Booking screen: the price outline, and taking the booking.
+    //
+    // confirmBookingHere() is the button at the top of the seat page. It asks
+    // for the contact details if they are missing, and then calls
+    // confirmBooking(), which hands the seats to BookingService.
+    //
+    // The price outline is built fresh each time the selection changes, so the
+    // figure beside the button is always the figure that will be charged.
+    // ---------------------------------------------------------------------    // ---------------------------------------------------------------------
 
     private void openEvent(StadiumEvent event) {
         openEvent(event, false);
@@ -3685,8 +3731,13 @@ private void confirmBookingHere(StadiumEvent event) {
     }
 
     // ---------------------------------------------------------------------
-    // Booking history
     // ---------------------------------------------------------------------
+    // Booking history: every booking, with no sign-in.
+    //
+    // There are no accounts in this project, so this shows every booking on the
+    // computer. Somebody looking for their own uses the search box, which finds
+    // a booking by the email address or phone number on it.
+    // ---------------------------------------------------------------------    // ---------------------------------------------------------------------
 
     private void showBookings() {
         // No sign-in and no PIN: anyone using the application reaches their bookings
@@ -4035,8 +4086,12 @@ private void confirmBookingHere(StadiumEvent event) {
     }
 
     // ---------------------------------------------------------------------
-    // Occupancy report
     // ---------------------------------------------------------------------
+    // Occupancy report: how full the stadium is, per event.
+    //
+    // Only confirmed bookings count, and a cancelled one gives its seats back.
+    // The numbers come from OccupancyReport rather than being worked out here.
+    // ---------------------------------------------------------------------    // ---------------------------------------------------------------------
 
     /**
      * Reports how full each venue is, section by section, across every event.
@@ -4201,8 +4256,13 @@ private void confirmBookingHere(StadiumEvent event) {
     }
 
     // ---------------------------------------------------------------------
-    // Booked seats ledger
     // ---------------------------------------------------------------------
+    // Booked seats ledger: every seat that has been sold for one event.
+    //
+    // A flat list of seats with who bought them and when. It is reached from the
+    // header, and it looks at one event at a time so browsing it never disturbs
+    // the seat map somebody is part way through booking.
+    // ---------------------------------------------------------------------    // ---------------------------------------------------------------------
 
     /**
      * Shows every seat already taken, per stadium and per event, so a customer
@@ -4518,8 +4578,13 @@ private void confirmBookingHere(StadiumEvent event) {
     }
 
     // ---------------------------------------------------------------------
-    // Shared UI helpers
     // ---------------------------------------------------------------------
+    // Shared UI helpers: the small pieces every screen uses.
+    //
+    // Buttons, cards, rows and dialogs. Nothing here decides anything about
+    // booking — these only build things and put them on screen. That is why
+    // they are all at the bottom, away from the screens that use them.
+    // ---------------------------------------------------------------------    // ---------------------------------------------------------------------
 
     private JPanel buildSearchBar(JTextField field, String hint) {
         styleSearchField(field);
