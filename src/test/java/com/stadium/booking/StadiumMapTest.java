@@ -29,6 +29,12 @@ import java.util.Set;
  * and click straight onto a seat in the end they want, without being told which
  * letter it is first.
  */
+
+/**
+ * Checks that the seat map draws correctly and stays within its size
+ * limits.
+ */
+
 final class StadiumMapTest {
     private StadiumMapTest() {
     }

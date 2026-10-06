@@ -26,6 +26,12 @@ import java.util.Map;
  * reported against its own field, and every message names a format that would
  * be accepted.
  */
+
+/**
+ * Checks what counts as a usable name, email address and phone number,
+ * and that every wrong field is reported at once.
+ */
+
 final class CustomerDetailsTest {
     private CustomerDetailsTest() {
     }

@@ -25,6 +25,12 @@ import java.util.Set;
  * Persistence, and the regression tests for the defect where a confirmed
  * booking could silently disappear from the database.
  */
+
+/**
+ * Checks that a booking survives the application being closed and
+ * reopened.
+ */
+
 final class BookingPersistenceTest {
     private BookingPersistenceTest() {
     }

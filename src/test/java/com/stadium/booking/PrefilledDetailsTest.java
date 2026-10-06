@@ -19,6 +19,13 @@ import static com.stadium.booking.TestRunner.test;
  * booking was refused afterwards, with the customer holding a warning and no way
  * to correct it.
  */
+
+/**
+ * Checks that details already typed on the booking screen are checked
+ * too, rather than being assumed good just because the boxes are not
+ * empty.
+ */
+
 final class PrefilledDetailsTest {
     private PrefilledDetailsTest() {
     }

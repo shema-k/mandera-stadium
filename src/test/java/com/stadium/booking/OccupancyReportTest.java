@@ -27,6 +27,11 @@ import java.util.List;
  * kept separately, because a season total that folded eight events together would
  * report a nearly empty ground however busy each individual night was.
  */
+
+/**
+ * Checks how full the stadium is, overall and for each end.
+ */
+
 final class OccupancyReportTest {
     private OccupancyReportTest() {
     }

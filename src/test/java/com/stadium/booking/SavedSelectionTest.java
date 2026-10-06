@@ -31,6 +31,12 @@ import java.util.stream.Collectors;
  * are not held, so the tests here are mostly about it going stale honestly rather
  * than about the arithmetic.
  */
+
+/**
+ * Checks saving seats for later: that they can be picked up again, and
+ * that a label over the limit is refused rather than quietly cut.
+ */
+
 final class SavedSelectionTest {
     private SavedSelectionTest() {
     }

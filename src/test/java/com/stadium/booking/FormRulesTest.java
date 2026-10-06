@@ -15,6 +15,11 @@ import static com.stadium.booking.TestRunner.test;
  * type a name, watch the save succeed, and find later that the start of it had
  * gone. Refusing it with a message that says by how much to cut is the change.
  */
+
+/**
+ * Checks the short rules for other typed text.
+ */
+
 final class FormRulesTest {
     private FormRulesTest() {
     }

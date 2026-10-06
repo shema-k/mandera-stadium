@@ -20,7 +20,10 @@ import static com.stadium.booking.TestRunner.test;
 
 import java.util.List;
 
-/** Seat holds, tickets, export and payment records. */
+/**
+ * Checks seat holds, the e-ticket, and the simulated mobile money.
+ */
+
 final class BookingToolsTest {
     private BookingToolsTest() {
     }

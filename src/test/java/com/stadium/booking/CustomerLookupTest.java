@@ -23,6 +23,11 @@ import java.util.List;
  * search a customer uses to pick their own booking out of the list, by the email
  * address or phone number they booked with.
  */
+
+/**
+ * Checks finding a booking by the email address or phone number on it.
+ */
+
 final class CustomerLookupTest {
     private CustomerLookupTest() {
     }

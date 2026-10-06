@@ -27,6 +27,11 @@ import java.util.Set;
  * for a seat-booking system: the customer picked a seat, was quoted a price for
  * it, and then got a different seat at the point of payment.
  */
+
+/**
+ * Checks that the seats booked are exactly the seats the customer chose.
+ */
+
 final class SeatAllocationTest {
     private SeatAllocationTest() {
     }

@@ -19,7 +19,10 @@ import static com.stadium.booking.TestRunner.test;
 import java.util.List;
 import java.util.Set;
 
-/** The per-venue, per-event view of which seats have been taken. */
+/**
+ * Checks the list of every seat already sold for one event.
+ */
+
 final class SeatLedgerTest {
     private SeatLedgerTest() {
     }

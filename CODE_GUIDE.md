@@ -105,6 +105,10 @@ No decisions here. Change a value and every screen that uses it changes too.
 failure tells you what broke. `TestRunner.java` is the list; a new test only runs
 if it is registered there.
 
+**[src/test/java/com/stadium/booking/README.md](src/test/java/com/stadium/booking/README.md)**
+explains how to write a test, which assert to use, and — for five of these files
+— the bug that each one exists to catch.
+
 | File | Checks |
 |---|---|
 | `TestRunner.java` | Starts everything. Edit this when adding a test. |
@@ -120,7 +124,7 @@ if it is registered there.
 | `SavedSelectionTest` | Saving seats for later, and their labels. |
 | `OccupancyReportTest` | The occupancy numbers. |
 | `ReceiptTest` | The receipt adds up. |
-| `BookingToolsTest` | The ticket text and the CSV export. |
+| `BookingToolsTest` | Seat holds, the e-ticket, the simulated mobile money. |
 | `CustomerLookupTest` | Finding a booking by email or phone. |
 | `StadiumMapTest` | The seat map drawing and its limits. |
 | `KeyboardSeatSelectionTest` | Choosing seats with the arrow keys. |

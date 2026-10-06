@@ -23,6 +23,12 @@ import java.util.List;
  * indistinguishable at night. These tests check the two things that actually
  * break in practice, readability and telling the seat states apart.
  */
+
+/**
+ * Checks that the light and dark themes are readable, by measuring real
+ * contrast.
+ */
+
 final class ThemeTest {
     private ThemeTest() {
     }

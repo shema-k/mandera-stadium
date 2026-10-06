@@ -35,6 +35,12 @@ import java.util.Map;
  * <p>Each of those is checked here by looking at what the application would put on
  * screen, in all three languages.
  */
+
+/**
+ * Checks that the words coming from the venue data are translated, and
+ * that a stand with no translation keeps its own name.
+ */
+
 final class VenueWordsTest {
     private VenueWordsTest() {
     }

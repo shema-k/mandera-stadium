@@ -18,7 +18,10 @@ import static com.stadium.booking.TestRunner.test;
 import java.util.ArrayList;
 import java.util.List;
 
-/** The itemised receipt a customer gets after booking. */
+/**
+ * Checks that the receipt adds up: every seat, the fee, and the total.
+ */
+
 final class ReceiptTest {
     private ReceiptTest() {
     }

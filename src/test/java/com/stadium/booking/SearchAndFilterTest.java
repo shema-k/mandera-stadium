@@ -19,7 +19,10 @@ import java.util.Map;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-/** Filtering and live search behaviour, kept separate from the Swing layer. */
+/**
+ * Checks searching and filtering the schedule.
+ */
+
 final class SearchAndFilterTest {
     private SearchAndFilterTest() {
     }

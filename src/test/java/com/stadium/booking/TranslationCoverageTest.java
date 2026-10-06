@@ -33,6 +33,13 @@ import java.util.Set;
  *       redrawn.
  * </ul>
  */
+
+/**
+ * Checks that every word a customer can read exists in all three
+ * languages, so switching language never leaves part of a screen in
+ * English.
+ */
+
 final class TranslationCoverageTest {
     private TranslationCoverageTest() {
     }

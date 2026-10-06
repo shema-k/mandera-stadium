@@ -26,6 +26,12 @@ import java.util.List;
  * booking is really taken, is really charged the quoted price, and produces a
  * receipt that adds up to it.
  */
+
+/**
+ * Checks that the confirm button appears only when there is something to
+ * confirm, and that it counts the seats correctly.
+ */
+
 final class ConfirmBookingTest {
     private ConfirmBookingTest() {
     }

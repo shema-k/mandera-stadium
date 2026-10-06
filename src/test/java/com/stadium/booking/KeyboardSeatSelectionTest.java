@@ -28,6 +28,11 @@ import java.util.List;
  * look installed but never fire. These tests drive the actions directly, which is
  * the only reliable way to check this without a real display.
  */
+
+/**
+ * Checks that seats can be chosen with the arrow keys and Enter.
+ */
+
 final class KeyboardSeatSelectionTest {
     private KeyboardSeatSelectionTest() {
     }

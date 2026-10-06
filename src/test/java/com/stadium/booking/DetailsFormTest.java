@@ -34,6 +34,12 @@ import javax.swing.JTextField;
  * <p>Building the form for real and looking at it is the only way to catch
  * either, so that is what these do.
  */
+
+/**
+ * Checks that the contact form marks the wrong field, keeps what was
+ * typed, and puts the cursor where it needs fixing.
+ */
+
 final class DetailsFormTest {
     private DetailsFormTest() {
     }

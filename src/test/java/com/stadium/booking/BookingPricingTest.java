@@ -19,7 +19,11 @@ import static com.stadium.booking.TestRunner.test;
 
 import java.util.List;
 
-/** Pricing, per-reservation limits and customer detail validation. */
+/**
+ * Checks the pricing rules: that prices fall towards the back, that the
+ * booking fee is added once, and that the seat limit is enforced.
+ */
+
 final class BookingPricingTest {
     private BookingPricingTest() {
     }

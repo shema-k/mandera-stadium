@@ -33,6 +33,12 @@ import java.util.Set;
  * An earlier version carried its own copy of the price curve and quoted prices
  * the seat map would never charge.
  */
+
+/**
+ * Checks the figures the stadium details screen shows: price spans, how
+ * full it is, and how many seats are on sale.
+ */
+
 final class StadiumDetailsTest {
     private StadiumDetailsTest() {
     }

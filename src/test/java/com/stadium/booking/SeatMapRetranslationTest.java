@@ -28,6 +28,12 @@ import java.lang.reflect.Field;
  * <p>So the check is on {@code retranslate}, which is what a language switch
  * calls, rather than on the wording table.
  */
+
+/**
+ * Checks that the seat map's tabs are renamed when the language changes,
+ * not only when they are first built.
+ */
+
 final class SeatMapRetranslationTest {
     private SeatMapRetranslationTest() {
     }

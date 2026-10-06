@@ -17,7 +17,11 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-/** Checks the Ugandan venue, club and artist data stays internally consistent. */
+/**
+ * Checks that the facts written in StadiumData are right: the venue, its
+ * four sections, and that every event is in the future.
+ */
+
 final class StadiumDataTest {
     private StadiumDataTest() {
     }

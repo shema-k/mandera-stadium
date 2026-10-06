@@ -11,7 +11,11 @@ import static com.stadium.booking.TestRunner.assertTrue;
 import static com.stadium.booking.TestRunner.suite;
 import static com.stadium.booking.TestRunner.test;
 
-/** The interface can run in English, Luganda or Swahili. */
+/**
+ * Checks that numbers written into the wording follow the code rather
+ * than being typed in, in all three languages.
+ */
+
 final class LocaleTest {
     private LocaleTest() {
     }

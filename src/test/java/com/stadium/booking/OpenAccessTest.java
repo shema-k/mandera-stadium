@@ -31,6 +31,12 @@ import java.util.List;
  * the database has to open on its own rather than waiting for a password that
  * nobody is there to type.
  */
+
+/**
+ * Checks that every screen opens with no sign-in, because the system is
+ * open to anyone who books.
+ */
+
 final class OpenAccessTest {
     private OpenAccessTest() {
     }

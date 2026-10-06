@@ -28,6 +28,11 @@ import java.util.List;
  * about any single rule: choose an end, choose exact seats, see the itemised
  * costs, and get a receipt that adds up.
  */
+
+/**
+ * Checks the whole journey from picking seats to being given a receipt.
+ */
+
 final class BookingFlowTest {
     private BookingFlowTest() {
     }
