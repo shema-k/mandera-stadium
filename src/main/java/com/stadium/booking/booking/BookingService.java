@@ -330,13 +330,31 @@ public class BookingService {
         return new ArrayList<>(seatInventory.values());
     }
 
+    /**
+     * All the seats in one section, such as every seat in end B.
+     *
+     * <p>seatInventory is a map, which is a bit like a dictionary: it holds
+     * things under a key, so we can look one up without searching. The values()
+     * part gives us just the seats, in no particular order.
+     *
+     * @return the seats in that section, or an empty list if no section was named
+     */
     public List<Seat> getSeats(String sectionId) {
+        List<Seat> found = new ArrayList<>();
+
         if (sectionId == null) {
-            return new ArrayList<>();
+            return found;
         }
-        return seatInventory.values().stream()
-                .filter(seat -> seat.getKey().getSection().equalsIgnoreCase(sectionId))
-                .collect(Collectors.toList());
+
+        for (Seat seat : seatInventory.values()) {
+            // equalsIgnoreCase means "A" matches "a", so the caller does not
+            // have to know which way round somebody typed the letter.
+            if (seat.getKey().getSection().equalsIgnoreCase(sectionId)) {
+                found.add(seat);
+            }
+        }
+
+        return found;
     }
 
     public Seat getSeat(SeatKey key) {
@@ -502,55 +520,118 @@ public class BookingService {
         return Collections.unmodifiableList(new ArrayList<>(bookings));
     }
 
+    /**
+     * The bookings made for one venue. A null means "every venue".
+     */
     public List<Booking> getBookingsForStadium(String stadiumId) {
-        return bookings.stream()
-                .filter(booking -> stadiumId == null || stadiumId.equals(booking.getStadiumId()))
-                .collect(Collectors.toList());
+        List<Booking> found = new ArrayList<>();
+
+        for (Booking booking : bookings) {
+            if (stadiumId == null || stadiumId.equals(booking.getStadiumId())) {
+                found.add(booking);
+            }
+        }
+
+        return found;
+    }
+
+        /**
+     * Whether any booking carries the given email address or phone number.
+     *
+     * <p>A quick yes or no for the search box. There is no sign-in, so this is
+     * how somebody finds their own booking: they type the email address or phone
+     * number they booked with.
+     *
+     * @return true if at least one booking matches
+     */
+    public boolean hasBookingFor(String contact) {
+        return findBookingsFor(contact).size() > 0;
     }
 
     /**
- * Whether any booking carries the given email address or phone number.
- *
- * <p>A quick yes/no for the search box, so a customer can find their own booking
- * by typing the details they booked with.
- */
-public boolean hasBookingFor(String contact) {
-    return !findBookingsFor(contact).isEmpty();
-}
-
-    /** The bookings made with a given email address or phone number. */
+     * The bookings made with a given email address or phone number, newest
+     * first.
+     *
+     * <p>Three steps.
+     *
+     * <p><b>Step 1: tidy up what was typed.</b> Extra spaces are removed and
+     * everything is made lower case, so "  AMINA@Example.CO.UG " still matches
+     * "amina@example.co.ug".
+     *
+     * <p><b>Step 2: keep the ones that match.</b> A booking matches when the
+     * typed text is the same as the email on the booking, or the same as the
+     * phone number. Either one is enough.
+     *
+     * <p><b>Step 3: put the newest at the top.</b> Sorting by date is not quite
+     * enough, because two bookings can be made on the same millisecond and would
+     * then swap places each time the list is rebuilt. So the reference breaks
+     * the tie. References are given out in order, which keeps the list steady.
+     *
+     * <p>Anything shorter than three characters is refused, because a single
+     * letter would match half the bookings on the list.
+     */
     public List<Booking> findBookingsFor(String contact) {
+        List<Booking> found = new ArrayList<>();
+
         if (contact == null) {
-            return new ArrayList<>();
+            return found;
         }
+
         String wanted = contact.trim().toLowerCase(Locale.ENGLISH);
         if (wanted.length() < 3) {
-            return new ArrayList<>();
+            return found;
         }
-        return bookings.stream()
-                .filter(booking -> {
-                    String email = booking.getEmail() == null
-                            ? "" : booking.getEmail().trim().toLowerCase(Locale.ENGLISH);
-                    String phone = booking.getPhone() == null
-                            ? "" : booking.getPhone().trim().toLowerCase(Locale.ENGLISH);
-                    return email.equals(wanted) || phone.equals(wanted);
-                })
-                // Newest first. Bookings made inside the same millisecond share a
-                // timestamp, so the reference breaks the tie: references are
-                // allocated in order, which keeps the list stable rather than
-                // leaving two bookings in an arbitrary order.
-                .sorted(Comparator.comparing(Booking::getCreatedAt)
-                        .thenComparing(Booking::getReference)
-                        .reversed())
-                .collect(Collectors.toList());
+
+        // Step 2: keep the bookings whose email or phone matches.
+        for (Booking booking : bookings) {
+            String email = clean(booking.getEmail());
+            String phone = clean(booking.getPhone());
+
+            if (email.equals(wanted) || phone.equals(wanted)) {
+                found.add(booking);
+            }
+        }
+
+        // Step 3: newest first. reversed() because a bigger reference and a
+        // later date should both come first.
+        Collections.sort(found, Comparator
+                .comparing(Booking::getCreatedAt)
+                .thenComparing(Booking::getReference)
+                .reversed());
+
+        return found;
     }
 
-    public List<Booking> getBookingsForEvent(StadiumEvent event) {
-        if (event == null) {
-            return new ArrayList<>();
+    /**
+     * Turns text into the form we compare against: no nulls, no spaces at the
+     * ends, all lower case.
+     *
+     * <p>Kept as one small method because the same tidying is needed for the
+     * typed text, the email and the phone number, and doing it three different
+     * ways is how they quietly stop matching each other.
+     */
+    private String clean(String text) {
+        if (text == null) {
+            return "";
         }
-        return bookings.stream().filter(booking -> belongsToEvent(booking, event))
-                .collect(Collectors.toList());
+        return text.trim().toLowerCase(Locale.ENGLISH);
+    }
+
+    /** The bookings made for one event. */
+    public List<Booking> getBookingsForEvent(StadiumEvent event) {
+        List<Booking> found = new ArrayList<>();
+
+        if (event == null) {
+            return found;
+        }
+
+        for (Booking booking : bookings) {
+            if (belongsToEvent(booking, event)) {
+                found.add(booking);
+            }
+        }
+
+        return found;
     }
 
     public double totalFor(List<Seat> selectedSeats) {
@@ -610,17 +691,20 @@ public boolean hasBookingFor(String contact) {
     }
 
     /**
-     * Validates and commits a reservation for the currently selected event. A
-     * seat is only marked booked after every selected seat has passed checks.
+     * Checks the contact details on their own, without booking anything.
+     *
+     * <p>Used when the details are collected in a dialog before the booking is
+     * confirmed, so a missing email is reported on that dialog rather than after
+     * the customer has already agreed to the purchase.
+     *
+     * <p>This reports only the FIRST problem it finds, which is fine because it
+     * is a safety net. The form on screen checks every field at once with
+     * CustomerDetails and marks each bad one, so nobody gets sent here one
+     * problem at a time.
+     *
+     * @throws IllegalArgumentException if the details cannot be used
      */
-    /**
- * Checks the contact details on their own, without booking anything.
- *
- * <p>Used when the details are collected in a dialog before the booking is
- * confirmed, so a missing email is reported on that dialog rather than after the
- * customer has already agreed to the purchase.
- */
-public void validateCustomer(String customerName, String email, String phone) {
+    public void validateCustomer(String customerName, String email, String phone) {
         String name = customerName == null ? "" : customerName.trim();
         String address = email == null ? "" : email.trim();
         String number = phone == null ? "" : phone.trim();
@@ -687,11 +771,18 @@ public void validateCustomer(String customerName, String email, String phone) {
 
         // Customer identity is stored for the receipt and history only. There is intentionally
         // no limit on how many reservations one person may create.
+        // Put the seats in order before saving, so the receipt always reads
+        // "A1, A2, B4" rather than whichever order they were clicked in.
         List<SeatKey> keys = new ArrayList<>(selectedKeys);
-        keys.sort(SeatKey::compareTo);
-        double total = getTotalCharge(keys.stream()
-                .map(seatInventory::get)
-                .collect(Collectors.toList()));
+        Collections.sort(keys);
+
+        // Turn the seat addresses back into Seat objects, which is what holds
+        // the prices, and then work out what they come to in total.
+        List<Seat> chosenSeats = new ArrayList<>();
+        for (SeatKey key : keys) {
+            chosenSeats.add(seatInventory.get(key));
+        }
+        double total = getTotalCharge(chosenSeats);
         String reference = nextReference();
         Booking booking = new Booking(reference, activeEvent.getStadiumId(), activeEvent.getId(),
                 activeEvent.getHeadline(), normalizedName, normalizedEmail, normalizedPhone,

@@ -10,8 +10,18 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
-import java.util.stream.Collectors;
-/** A confirmed (or later cancelled) seat reservation. */
+
+/**
+ * One confirmed booking: who booked, which event, which seats, and for how much.
+ *
+ * <p>A booking is a record of something that already happened. Nothing in this
+ * class changes a booking — cancelling one is the only thing that alters it, and
+ * even that only sets the status. That is deliberate: once money is involved, the
+ * booking should read the same tomorrow as it does today.
+ *
+ * <p>"Serializable" means the booking can be written to a file and read back
+ * later, which is how it survives the application being closed.
+ */
 public final class Booking implements Serializable {
     private static final long serialVersionUID = 1L;
 
@@ -111,15 +121,41 @@ public final class Booking implements Serializable {
         return phone;
     }
 
+    /**
+     * The seats on this booking.
+     *
+     * <p>unmodifiableList wraps the real list so that nobody can add or remove a
+     * seat from a booking after it has been made. The list is still readable, it
+     * just cannot be changed.
+     */
     public List<SeatKey> getSeats() {
         return Collections.unmodifiableList(seats);
     }
 
+    /**
+     * The seats as one line of text, for the receipt and the bookings list.
+     *
+     * <p>"B4-03, B4-04, C1-11"
+     *
+     * <p>The seats are sorted first so the line always comes out the same way. A
+     * customer who booked A1 then B2 would otherwise see "B2, A1" on the receipt
+     * and "A1, B2" on the ticket.
+     */
     public String getSeatDisplay() {
-        return seats.stream()
-                .sorted()
-                .map(SeatKey::display)
-                .collect(Collectors.joining(", "));
+        List<SeatKey> sorted = new ArrayList<>(seats);
+        Collections.sort(sorted);
+
+        StringBuilder text = new StringBuilder();
+
+        for (SeatKey seat : sorted) {
+            // Put a comma after every seat except the last one.
+            if (text.length() > 0) {
+                text.append(", ");
+            }
+            text.append(seat.display());
+        }
+
+        return text.toString();
     }
 
     public double getTotal() {

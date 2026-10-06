@@ -1586,11 +1586,16 @@ public final class StadiumBookingApp extends JFrame {
         card.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(BORDER), new EmptyBorder(12, 14, 12, 14)));
 
-        List<StadiumAnnouncement> notices = StadiumData.getAnnouncements(stadium.getId()).stream()
-                .filter(notice -> notice.getEventId() == null
-                        || notice.getEventId().isEmpty()
-                        || notice.getEventId().equals(event.getId()))
-                .collect(java.util.stream.Collectors.toList());
+        // Keep the notices that belong to this event. A notice with no event id
+        // is about the venue as a whole, so it belongs on every event.
+        List<StadiumAnnouncement> notices = new ArrayList<>();
+        for (StadiumAnnouncement notice : StadiumData.getAnnouncements(stadium.getId())) {
+            boolean aboutWholeVenue = notice.getEventId() == null
+                    || notice.getEventId().isEmpty();
+            if (aboutWholeVenue || notice.getEventId().equals(event.getId())) {
+                notices.add(notice);
+            }
+        }
 
         JLabel title = new JLabel(notices.isEmpty() ? "No notices" : Messages.get("event.noNotices"));
         title.setForeground(TEXT);
@@ -1959,8 +1964,15 @@ private void confirmBookingHere(StadiumEvent event) {
         text.add(sideText("<b>" + selection.getLabel() + "</b>", "#1e293b", 13f));
         text.add(sideText(selection.getEventName()
                 + (stadium == null ? "" : "<br>" + stadium.getName()), "#475569", 11f));
-        text.add(sideText(selection.getSeats().stream().map(SeatKey::display)
-                .collect(java.util.stream.Collectors.joining(", ")), "#1e293b", 11f));
+        // The seats as one readable line: "B4-03, B4-04, B4-05"
+        StringBuilder seatText = new StringBuilder();
+        for (SeatKey seat : selection.getSeats()) {
+            if (seatText.length() > 0) {
+                seatText.append(", ");
+            }
+            seatText.append(seat.display());
+        }
+        text.add(sideText(seatText.toString(), "#1e293b", 11f));
         text.add(sideText(selection.getSeats().size() + " seat"
                 + (selection.getSeats().size() == 1 ? "" : "s") + "  \u2022  "
                 + BookingService.formatMoney(selection.getTotal())
@@ -3280,9 +3292,24 @@ private void confirmBookingHere(StadiumEvent event) {
         return summary;
     }
 
+    /**
+     * Called every time somebody clicks a seat, to say what just happened in the
+     * status line at the bottom of the screen.
+     *
+     * <p>We have to work out whether the click added the seat or took it away.
+     * The only reliable way is to look at the selection afterwards: if this seat
+     * is in it, the click added it.
+     */
     private void onSeatToggled(Seat seat) {
-        boolean selected = seatMapPanel.getSelectedSeats().stream()
-                .anyMatch(item -> item.getKey().equals(seat.getKey()));
+        boolean selected = false;
+
+        for (Seat item : seatMapPanel.getSelectedSeats()) {
+            if (item.getKey().equals(seat.getKey())) {
+                selected = true;
+                break;
+            }
+        }
+
         showStatus((selected ? "Selected seat " : "Removed seat ") + seat.display());
     }
 
@@ -5076,8 +5103,18 @@ private void confirmBookingHere(StadiumEvent event) {
         int venues = 0;
         for (Stadium stadium : StadiumData.getStadiums()) {
             List<StadiumEvent> events = StadiumData.getEvents(stadium.getId());
-            boolean eventMatch = events.stream()
-                    .anyMatch(event -> event.searchableText().contains(q));
+
+            // A venue matches if the venue itself matches, or if any of its
+            // events match. Searching "Cranes" should find Namboole even though
+            // "Cranes" is in the event names and not in the venue name.
+            boolean eventMatch = false;
+            for (StadiumEvent event : events) {
+                if (event.searchableText().contains(q)) {
+                    eventMatch = true;
+                    break;
+                }
+            }
+
             if (!q.isEmpty() && !stadium.searchableText().contains(q) && !eventMatch) {
                 continue;
             }

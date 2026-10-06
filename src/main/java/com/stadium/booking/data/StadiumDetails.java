@@ -4,10 +4,11 @@ import com.stadium.booking.booking.BookingService;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
 /**
  * Everything known about one venue, worked out in one place.
  *
@@ -101,10 +102,25 @@ public final class StadiumDetails {
                     : priceFor(priceReference, section, section.getRows());
             sections.add(new SectionFacts(section, front, back));
         }
-        this.cheapestSeat = sections.stream().mapToDouble(SectionFacts::getBackPrice).min()
-                .orElse(0);
-        this.dearestSeat = sections.stream().mapToDouble(SectionFacts::getFrontPrice).max()
-                .orElse(0);
+        // The cheapest seat anywhere in the stadium, and the dearest. One loop
+        // over the sections, keeping hold of the smallest and largest numbers
+        // we come across. Plain numbers are used while we work, and only
+        // assigned to the fields once, at the end.
+        double lowest = 0;
+        double highest = 0;
+
+        for (int index = 0; index < sections.size(); index++) {
+            SectionFacts facts = sections.get(index);
+            if (index == 0 || facts.getBackPrice() < lowest) {
+                lowest = facts.getBackPrice();
+            }
+            if (index == 0 || facts.getFrontPrice() > highest) {
+                highest = facts.getFrontPrice();
+            }
+        }
+
+        this.cheapestSeat = lowest;
+        this.dearestSeat = highest;
 
         this.notices = StadiumData.getAnnouncements(stadium.getId());
         for (StadiumEvent event : this.events) {
@@ -170,13 +186,34 @@ public final class StadiumDetails {
         return sections;
     }
 
-    /** Upcoming events, soonest first. */
+    /**
+     * The events at this venue, soonest first.
+     *
+     * <p>The sort compares three things in turn: the date, then the start time,
+     * then the id. The id is only there as a last step so that two events with
+     * the same date and time always come back in the same order.
+     */
     public List<StadiumEvent> getEvents() {
-        return events.stream()
-                .sorted(java.util.Comparator.comparing(StadiumEvent::getDate)
-                        .thenComparing(StadiumEvent::getStartTime)
-                        .thenComparing(StadiumEvent::getId))
-                .collect(Collectors.toList());
+        List<StadiumEvent> sorted = new ArrayList<>(events);
+
+        Collections.sort(sorted, new Comparator<StadiumEvent>() {
+            @Override
+            public int compare(StadiumEvent one, StadiumEvent two) {
+                int result = one.getDate().compareTo(two.getDate());
+                if (result != 0) {
+                    return result;
+                }
+
+                result = one.getStartTime().compareTo(two.getStartTime());
+                if (result != 0) {
+                    return result;
+                }
+
+                return one.getId().compareTo(two.getId());
+            }
+        });
+
+        return sorted;
     }
 
     /**
@@ -196,8 +233,17 @@ public final class StadiumDetails {
         return events.size();
     }
 
+    /** How many of the events are games rather than concerts. */
     public int getGameCount() {
-        return (int) events.stream().filter(StadiumEvent::isGame).count();
+        int count = 0;
+
+        for (StadiumEvent event : events) {
+            if (event.isGame()) {
+                count = count + 1;
+            }
+        }
+
+        return count;
     }
 
     public int getConcertCount() {
@@ -223,12 +269,28 @@ public final class StadiumDetails {
     }
 
     /** Events that cannot currently be booked, and why. */
+    /**
+     * The events that cannot be booked right now.
+     *
+     * <p>An event is blocked when it has been cancelled, when there is an
+     * emergency notice, or when it is too close to its booking deadline.
+     */
     public List<StadiumEvent> getBlockedEvents() {
+        List<StadiumEvent> blocked = new ArrayList<>();
+
+        // Without a booking service there is nothing to check against, so we
+        // cannot say anything is blocked.
         if (booked == null) {
-            return List.of();
+            return blocked;
         }
-        return events.stream().filter(event -> !booked.isBookingOpen(event))
-                .collect(Collectors.toList());
+
+        for (StadiumEvent event : events) {
+            if (!booked.isBookingOpen(event)) {
+                blocked.add(event);
+            }
+        }
+
+        return blocked;
     }
 
     public int getSeatsOnSale() {
