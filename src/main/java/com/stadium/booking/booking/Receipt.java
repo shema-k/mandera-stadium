@@ -139,25 +139,39 @@ public final class Receipt {
             stadium = StadiumData.getStadium(event.getStadiumId());
         }
 
+        // Four collections, all keyed by which end the seat is in:
+        //   lines     - one line per seat, in the order they were booked
+        //   bySection - the running total for each end
+        //   labels    - the name of each end, worked out once
+        //   counts    - how many seats have been counted in each end
         List<Line> lines = new ArrayList<>();
         Map<String, SectionTotal> bySection = new LinkedHashMap<>();
         Map<String, String> labels = new LinkedHashMap<>();
         Map<String, Integer> counts = new LinkedHashMap<>();
 
+        // Step 1: go through every seat on the booking and write down one line
+        // for it, while adding it up per end.
         for (SeatKey key : booking.getSeats()) {
+            // The price comes from the same service the seat map used, so the
+            // receipt can never disagree with what was charged.
             StadiumEvent pricedFor = event == null ? null : event;
             double price = service != null && pricedFor != null
                     ? service.getSeatPrice(pricedFor, key)
                     : 0.0;
 
             SeatSection section = stadium == null ? null : stadium.getSection(key.getSection());
-            String sectionLabel = section == null ? "Section " + key.getSection() : section.getLabel();
+            String sectionLabel = section == null
+                    ? "Section " + key.getSection() : section.getLabel();
+
+            // "Front rows", "Upper rows" and so on, from the seat's row number.
             String tier = service != null
                     ? service.getRowTierName(key.getRow(), section == null ? 1 : section.getRows())
                     : "";
 
             lines.add(new Line(key, sectionLabel, tier, price));
 
+            // Put this seat into its end's running total. If the end is new,
+            // start it at this seat's price; otherwise add to what is there.
             String id = key.getSection();
             labels.putIfAbsent(id, sectionLabel);
             counts.merge(id, 1, Integer::sum);
@@ -166,17 +180,30 @@ public final class Receipt {
                             existing == null ? price : existing.getTotal() + price));
         }
 
+        // Step 2: turn the four running totals into a list, in end order.
         List<SectionTotal> totals = new ArrayList<>(bySection.values());
+
+        // Step 3: add up every seat. This is the seats on their own, with no fee.
         double seatSubtotal = 0.0;
         for (Line line : lines) {
-            seatSubtotal += line.getPrice();
+            seatSubtotal = seatSubtotal + line.getPrice();
         }
         seatSubtotal = round(seatSubtotal);
 
+        // Step 4: the fee is whatever the booking's total is, once the seats are
+        // taken off. Worked out this way so the receipt adds up exactly, even if
+        // a price was changed after the booking was made.
         double fee = Math.max(0.0, round(booking.getTotal() - seatSubtotal));
+
         return new Receipt(booking, event, stadium, lines, totals, seatSubtotal, fee);
     }
 
+    /**
+     * Rounds to two decimal places.
+     *
+     * <p>Rounding at every step is what stops a total drifting by a fraction of a
+     * shilling after a lot of additions.
+     */
     private static double round(double value) {
         return Math.round(value * 100.0) / 100.0;
     }
