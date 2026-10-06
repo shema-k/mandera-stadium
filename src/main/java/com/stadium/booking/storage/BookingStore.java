@@ -55,9 +55,25 @@ public final class BookingStore {
         return database.open();
     }
 
+    /**
+     * Creates the three tables if they are not there already.
+     *
+     * <p>Each statement starts with "IF NOT EXISTS", so running this every time
+     * the program starts is harmless. That is why the tables can be described
+     * here rather than needing a separate setup step.
+     *
+     * <p>"try (...)" closes the connection automatically when the block ends,
+     * even if something inside goes wrong. Without it a crash would leave the
+     * database locked and the program could not be started again.
+     */
     private void initializeSchema() throws SQLException, IOException {
         try (Connection connection = openConnection();
              Statement statement = connection.createStatement()) {
+
+            // ---- Table 1: one row per booking ----------------------------
+            // The reference is what the customer quotes at the gate, so it is the
+            // primary key: the database will never allow two bookings with the
+            // same reference.
             statement.executeUpdate("CREATE TABLE IF NOT EXISTS bookings ("
                     + "reference VARCHAR(64) PRIMARY KEY, "
                     + "stadium_id VARCHAR(80) NOT NULL, "
@@ -73,8 +89,15 @@ public final class BookingStore {
                     + "event_start_time TIME, "
                     + "status VARCHAR(20) NOT NULL"
                     + ")");
-            // One row per seat. The primary key makes a seat unique per event, so a
-            // double booking is rejected by the database rather than by luck.
+            // ---- Table 2: one row per seat --------------------------------
+            // This is the important one. A booking of ten seats adds ten rows
+            // here, and each row points back at the booking it belongs to.
+            //
+            // The PRIMARY KEY lists all four seat columns together, which says
+            // "a seat can appear once per event, never twice". If two people try
+            // to buy B4-03 at the same moment, the database refuses the second
+            // one. That guarantee lives in this line rather than in our Java
+            // code, so nothing we write can get around it.
             statement.executeUpdate("CREATE TABLE IF NOT EXISTS booking_seats ("
                     + "event_id VARCHAR(80) NOT NULL, "
                     + "section VARCHAR(8) NOT NULL, "
@@ -83,11 +106,15 @@ public final class BookingStore {
                     + "reference VARCHAR(64) NOT NULL, "
                     + "PRIMARY KEY (event_id, section, seat_row, seat_number)"
                     + ")");
+            // An index makes finding a booking's seats much faster, because the
+            // database can jump straight to the rows instead of reading them all.
             statement.executeUpdate("CREATE INDEX IF NOT EXISTS idx_seats_reference "
                     + "ON booking_seats(reference)");
-            // Seats picked but not yet paid for, so a customer can choose now and
-            // come back to them later. Separate from bookings because nothing is
-            // sold and the seats are not held.
+
+            // ---- Table 3: seats chosen but not yet paid for ---------------
+            // Separate from bookings because nothing has been sold and the seats
+            // are not held. Somebody else can still buy them, which the screen
+            // says plainly.
             statement.executeUpdate("CREATE TABLE IF NOT EXISTS saved_selections ("
                     + "id VARCHAR(64) PRIMARY KEY, "
                     + "label VARCHAR(120) NOT NULL, "

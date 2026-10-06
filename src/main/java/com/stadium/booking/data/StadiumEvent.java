@@ -9,8 +9,32 @@ import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 import java.util.Objects;
-/** A game or concert scheduled at a stadium. */
+
+/**
+ * One game or concert that is going to happen at a stadium.
+ *
+ * <p>It holds when the event is, who is playing or performing, and how much
+ * prices should be multiplied by. A big match is worth more than a small one, so
+ * a concert has a factor of 1.00 while a CECAFA final has 1.25 — meaning every
+ * seat costs a quarter more.
+ *
+ * <p>It does not hold any prices itself. The price of a seat is worked out in
+ * BookingService, which combines this event's factor with the seat's section and
+ * row. Keeping the two apart means changing a price rule does not mean touching
+ * every event.
+ */
 public final class StadiumEvent {
+
+    /**
+     * The three ways a date or time is written on screen.
+     *
+     * <p>These are patterns, like a template. DATE_FORMATTER turns a date into
+     * "Wed, 07 Oct 2026". TIME_FORMATTER turns a time into "19:30", using the
+     * 24-hour clock.
+     *
+     * <p>Every part of the pattern is fixed width, which is why the times and
+     * dates line up neatly down the schedule no matter how long the words are.
+     */
     private static final DateTimeFormatter DATE_FORMATTER =
             DateTimeFormatter.ofPattern("EEE, dd MMM yyyy", Locale.ENGLISH);
     private static final DateTimeFormatter TIME_FORMATTER =
@@ -148,6 +172,13 @@ public final class StadiumEvent {
         return type == EventType.CONCERT;
     }
 
+    /**
+     * Can somebody still book this event?
+     *
+     * <p>True while the clock is before the deadline. Once the deadline passes
+     * this turns false on its own, with nobody having to remember to close
+     * anything.
+     */
     public boolean isBookingOpen() {
         return LocalDateTime.now().isBefore(bookingDeadline);
     }
@@ -160,10 +191,17 @@ public final class StadiumEvent {
         return BookingCountdown.format(bookingDeadline);
     }
 
+    /** "Booking open" or "Booking closed". */
     public String getBookingStateLabel() {
         return isBookingOpen() ? "Booking open" : "Booking closed";
     }
 
+    /**
+     * The name of the event, as a heading.
+     *
+     * <p>A game is shown as the two teams, so "Uganda Cranes vs Kenya Harambee
+     * Stars", whatever the title was written as. A concert just uses its title.
+     */
     public String getHeadline() {
         if (isGame()) {
             return teamOne + " vs " + teamTwo;
@@ -171,6 +209,10 @@ public final class StadiumEvent {
         return title;
     }
 
+    /**
+     * A longer description, for the details screen: the sport and the teams for
+     * a game, or the artist for a concert.
+     */
     public String getEventDetails() {
         if (isGame()) {
             return sport + "  •  " + teamOne + " vs " + teamTwo;
@@ -190,10 +232,19 @@ public final class StadiumEvent {
         return doorsTime == null ? "" : TIME_FORMATTER.format(doorsTime);
     }
 
+    /** The date and the time together: "Wed, 07 Oct 2026  •  19:30". */
     public String getWhenLabel() {
         return getDateLabel() + "  •  " + getTimeLabel();
     }
 
+    /**
+     * Every word about this event as one lower-case line, for the search box.
+     *
+     * <p>All of it goes into one string so that searching is a single question:
+     * does what somebody typed appear anywhere in here? That way "cranes",
+     * "qualifier" and "07 Oct" all find the same match without each needing its
+     * own rule.
+     */
     public String searchableText() {
         return String.join(" ",
                 id, stadiumId, type.getLabel(), title,
