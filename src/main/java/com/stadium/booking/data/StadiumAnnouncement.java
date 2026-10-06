@@ -2,7 +2,19 @@ package com.stadium.booking.data;
 
 import java.time.LocalDateTime;
 import java.util.Objects;
-/** A notice, schedule update, emergency or user-submitted special request. */
+
+/**
+ * A notice attached to a venue or to one event: a postponement, a security
+ * reminder, a schedule change.
+ *
+ * <p>A few of these decide whether anybody can book at all. A cancellation or an
+ * emergency closes booking for the event it names. The rest are there to be read
+ * and change nothing.
+ *
+ * <p>appliesToEvent() is how a notice decides whether it belongs on a given
+ * screen. A notice with no event named is about the whole venue and appears on
+ * every event; one that names an event appears only there.
+ */
 public final class StadiumAnnouncement {
     private final String id;
     private final String stadiumId;
