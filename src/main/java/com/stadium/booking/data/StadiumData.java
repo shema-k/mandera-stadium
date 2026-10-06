@@ -9,32 +9,53 @@ import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
+
 /**
- * Demo data for the venue directory and schedules. The dates are generated
- * relative to the current day so the directory always has upcoming events.
+ * Holds the venue and everything happening at it.
+ *
+ * <p>All the data in this project about Namboole is written out here: the four
+ * seating sections and their prices, the list of events, and the notices.
+ *
+ * <p><b>To add an event, add one line to createEvents().</b> Copy an existing
+ * line, change the details, and leave it in date order.
+ *
+ * <p>The dates are worked out from today's date. So instead of writing "5 October
+ * 2026" we write "5 days from now". That way the schedule always has events in
+ * the future, whenever you run the program.
  */
 public final class StadiumData {
+
     /**
-     * Labels for the four independent seating sections (A to D). Section A is the
-     * premium stand, and prices fall through to section D at the back. Declared
-     * before the lists below because static initialisers run in declaration order.
+     * The names of the four seating sections, in order.
+     *
+     * <p>Section A is the most expensive because it is at the front. Prices go
+     * down as you go A, B, C, D.
      */
-    private static final String[] SECTION_LABELS = {
+    private static final String[] SECTION_NAMES = {
             "VIP Box", "Main Stand", "Terrace", "Kampala End"};
 
     private static final LocalDate TODAY = LocalDate.now();
+
+    // These three are built once when the program starts, then never change.
     private static final List<Stadium> STADIUMS = createStadiums();
     private static final List<StadiumEvent> EVENTS = createEvents();
     private static final List<StadiumAnnouncement> ANNOUNCEMENTS = createAnnouncements();
 
+    // Nothing needs to create this class, so the constructor is private.
     private StadiumData() {
     }
 
+    /** Every venue we have. */
     public static List<Stadium> getStadiums() {
         return STADIUMS;
     }
 
+    /**
+     * Finds one venue by its id.
+     *
+     * @param id the id to look for, for example "namboole"
+     * @return the venue, or null if there is no venue with that id
+     */
     public static Stadium getStadium(String id) {
         for (Stadium stadium : STADIUMS) {
             if (stadium.getId().equals(id)) {
@@ -44,17 +65,35 @@ public final class StadiumData {
         return null;
     }
 
+    /** Every event, at every venue. */
     public static List<StadiumEvent> getEvents() {
         return EVENTS;
     }
 
+    /**
+     * The events at one venue, soonest first.
+     *
+     * @param stadiumId the venue to look at, for example "namboole"
+     * @return a new list, so the caller cannot change our own list
+     */
     public static List<StadiumEvent> getEvents(String stadiumId) {
-        return EVENTS.stream()
-                .filter(event -> event.getStadiumId().equals(stadiumId))
-                .sorted(eventOrder())
-                .collect(Collectors.toList());
+        List<StadiumEvent> result = new ArrayList<StadiumEvent>();
+
+        for (StadiumEvent event : EVENTS) {
+            if (event.getStadiumId().equals(stadiumId)) {
+                result.add(event);
+            }
+        }
+
+        sortByDate(result);
+        return result;
     }
 
+    /**
+     * Finds one event by its id.
+     *
+     * @return the event, or null if there is no event with that id
+     */
     public static StadiumEvent getEvent(String id) {
         for (StadiumEvent event : EVENTS) {
             if (event.getId().equals(id)) {
@@ -64,27 +103,74 @@ public final class StadiumData {
         return null;
     }
 
+    /**
+     * The dates that have events on them, for one venue.
+     *
+     * <p>Used to fill the date filter box. A Set is used so a date is only
+     * listed once, even when several games are on the same day.
+     */
     public static List<LocalDate> getDates(String stadiumId) {
-        Set<LocalDate> dates = new LinkedHashSet<>();
+        Set<LocalDate> dates = new LinkedHashSet<LocalDate>();
+
         for (StadiumEvent event : getEvents(stadiumId)) {
             dates.add(event.getDate());
         }
-        return new ArrayList<>(dates);
+
+        return new ArrayList<LocalDate>(dates);
     }
 
+    /** Every notice, at every venue. */
     public static List<StadiumAnnouncement> getAnnouncements() {
         return ANNOUNCEMENTS;
     }
 
+    /** The notices for one venue. */
     public static List<StadiumAnnouncement> getAnnouncements(String stadiumId) {
-        return ANNOUNCEMENTS.stream()
-                .filter(announcement -> announcement.getStadiumId().equals(stadiumId))
-                .collect(Collectors.toList());
+        List<StadiumAnnouncement> result = new ArrayList<StadiumAnnouncement>();
+
+        for (StadiumAnnouncement announcement : ANNOUNCEMENTS) {
+            if (announcement.getStadiumId().equals(stadiumId)) {
+                result.add(announcement);
+            }
+        }
+
+        return result;
     }
 
+    /**
+     * Sorts events so the soonest is first.
+     *
+     * <p>It compares three things in turn. First the date. If two events are on
+     * the same day, it compares the kickoff time. If those are the same too, it
+     * compares the id. The last step is only there so that two events on the
+     * same day at the same time never swap places each time the list is sorted.
+     */
+    private static void sortByDate(List<StadiumEvent> events) {
+        Collections.sort(events, new Comparator<StadiumEvent>() {
+            @Override
+            public int compare(StadiumEvent one, StadiumEvent two) {
+                int result = one.getDate().compareTo(two.getDate());
+                if (result != 0) {
+                    return result;
+                }
+
+                result = one.getStartTime().compareTo(two.getStartTime());
+                if (result != 0) {
+                    return result;
+                }
+
+                return one.getId().compareTo(two.getId());
+            }
+        });
+    }
+
+    /**
+     * Builds the one venue: Mandela National Stadium, on Namboole Hill.
+     */
     private static List<Stadium> createStadiums() {
-        List<Stadium> stadiums = new ArrayList<>();
-        stadiums.add(new Stadium(
+        List<Stadium> stadiums = new ArrayList<Stadium>();
+
+        Stadium namboole = new Stadium(
                 "namboole",
                 "Mandela National Stadium (Namboole)",
                 "Kampala",
@@ -97,31 +183,47 @@ public final class StadiumData {
                 45202,
                 "#dc2626",
                 StadiumShape.OVAL,
-                sections(114, 99, 250000, 127, 89, 190000, 127, 89, 140000, 130, 87, 95000)));
+                buildSections());
+
+        stadiums.add(namboole);
         return Collections.unmodifiableList(stadiums);
     }
 
     /**
-     * Builds the four seating sections from explicit grids. Capacities are the real
-     * published figures, so the grids are sized to total exactly the stated
-     * capacity, which {@link Stadium} validates.
+     * Builds the four seating sections.
+     *
+     * <p>Each section needs three numbers: how many rows it has, how many seats
+     * are in each row, and what a front row seat costs. Those numbers are set
+     * in createStadiums() where the stadium is built.
+     *
+     * <p>Adding the rows together gives exactly 45,202, which is the capacity
+     * written on the stadium. Stadium checks that they match, so if you change
+     * one number here without changing the others it will tell you.
      */
-    private static List<SeatSection> sections(int rowsA, int seatsA, double priceA,
-                                              int rowsB, int seatsB, double priceB,
-                                              int rowsC, int seatsC, double priceC,
-                                              int rowsD, int seatsD, double priceD) {
-        List<SeatSection> sections = new ArrayList<>();
-        sections.add(new SeatSection("A", SECTION_LABELS[0], rowsA, seatsA, priceA));
-        sections.add(new SeatSection("B", SECTION_LABELS[1], rowsB, seatsB, priceB));
-        sections.add(new SeatSection("C", SECTION_LABELS[2], rowsC, seatsC, priceC));
-        sections.add(new SeatSection("D", SECTION_LABELS[3], rowsD, seatsD, priceD));
+    private static List<SeatSection> buildSections() {
+        List<SeatSection> sections = new ArrayList<SeatSection>();
+
+        sections.add(new SeatSection("A", SECTION_NAMES[0], 114, 99, 250000));
+        sections.add(new SeatSection("B", SECTION_NAMES[1], 127, 89, 190000));
+        sections.add(new SeatSection("C", SECTION_NAMES[2], 127, 89, 140000));
+        sections.add(new SeatSection("D", SECTION_NAMES[3], 130, 87, 95000));
+
         return sections;
     }
 
+    /**
+     * Builds the list of events.
+     *
+     * <p><b>To add an event, add one line below.</b> A game uses the game(...)
+     * method and a concert uses the concert(...) method. Keep them in date order
+     * so the list reads easily, though the program sorts it either way.
+     */
     private static List<StadiumEvent> createEvents() {
-        List<StadiumEvent> events = new ArrayList<>();
+        List<StadiumEvent> events = new ArrayList<StadiumEvent>();
 
-        // --- Mandela National Stadium (Namboole), Kampala ---
+        // Each game() call: id, venue, sport, home team, away team, then the day
+        // it falls on counting from today, the kickoff time, the doors time, a
+        // price multiplier, and a short description.
         events.add(game("namboole-01", "namboole", "Football",
                 "Uganda Cranes", "Kenya Harambee Stars", 1, 19, 30, 17, 30, 1.25,
                 "A CECAFA qualifier at the national stadium, with the Cranes playing in front of a "
@@ -155,30 +257,47 @@ public final class StadiumData {
         return Collections.unmodifiableList(events);
     }
 
+    /**
+     * Builds the three notices shown beside the schedule.
+     */
     private static List<StadiumAnnouncement> createAnnouncements() {
         LocalDateTime now = LocalDateTime.now();
-        List<StadiumAnnouncement> announcements = new ArrayList<>();
+        List<StadiumAnnouncement> announcements = new ArrayList<StadiumAnnouncement>();
+
+        // An ordinary notice. It does not stop anyone booking.
         announcements.add(new StadiumAnnouncement(
                 "namboole-notice-01", "namboole", "namboole-01", AnnouncementType.NOTICE,
                 "Match-day entry and security screening",
                 "Spectators should arrive early through the north gate. Accessible seating and "
                         + "wheelchair spaces are available from the VIP box entrance.",
                 now.minusHours(2), now.plusDays(30)));
+
+        // A cancellation. This one DOES stop people booking that event.
         announcements.add(new StadiumAnnouncement(
                 "namboole-cancel-01", "namboole", "namboole-04", AnnouncementType.CANCELLATION,
                 "Match postponed — heavy rain warning",
                 "The Cranes vs Taifa Stars qualifier has been postponed while the venue team monitors "
                         + "a heavy rain warning for the Kampala area.",
                 now.minusHours(1), now.plusDays(14)));
+
+        // A schedule change, shown on the stadium page rather than one event.
         announcements.add(new StadiumAnnouncement(
                 "namboole-schedule-01", "namboole", "", AnnouncementType.SCHEDULE_CHANGE,
                 "Concert gates may open earlier",
                 "For concerts, gates may open up to 60 minutes before the published doors time to "
                         + "allow security screening.",
                 now.minusDays(1), now.plusDays(45)));
+
         return Collections.unmodifiableList(announcements);
     }
 
+    /**
+     * Builds one football match.
+     *
+     * <p>This is only a shortcut so createEvents() reads more like a list of
+     * games. It works out the title from the two team names, then hands
+     * everything to the StadiumEvent constructor.
+     */
     private static StadiumEvent game(String id,
                                      String stadiumId,
                                      String sport,
@@ -192,11 +311,19 @@ public final class StadiumData {
                                      double priceFactor,
                                      String description) {
         String title = teamOne + " vs " + teamTwo;
-        return new StadiumEvent(id, stadiumId, EventType.GAME, title, sport, teamOne, teamTwo,
-                null, description, TODAY.plusDays(dayOffset), LocalTime.of(hour, minute),
+
+        return new StadiumEvent(id, stadiumId, EventType.GAME, title, sport,
+                teamOne, teamTwo, null, description,
+                TODAY.plusDays(dayOffset), LocalTime.of(hour, minute),
                 LocalTime.of(doorsHour, doorsMinute), priceFactor);
     }
 
+    /**
+     * Builds one concert.
+     *
+     * <p>The same shortcut as game(...). A concert has no home and away team, so
+     * the sport and team fields are left null.
+     */
     private static StadiumEvent concert(String id,
                                         String stadiumId,
                                         String title,
@@ -208,14 +335,9 @@ public final class StadiumData {
                                         int doorsMinute,
                                         double priceFactor,
                                         String description) {
-        return new StadiumEvent(id, stadiumId, EventType.CONCERT, title, null, null, null,
-                artist, description, TODAY.plusDays(dayOffset), LocalTime.of(hour, minute),
+        return new StadiumEvent(id, stadiumId, EventType.CONCERT, title,
+                null, null, null, artist, description,
+                TODAY.plusDays(dayOffset), LocalTime.of(hour, minute),
                 LocalTime.of(doorsHour, doorsMinute), priceFactor);
-    }
-
-    private static Comparator<StadiumEvent> eventOrder() {
-        return Comparator.comparing(StadiumEvent::getDate)
-                .thenComparing(StadiumEvent::getStartTime)
-                .thenComparing(StadiumEvent::getId);
     }
 }
