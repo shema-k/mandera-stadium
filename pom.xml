@@ -130,6 +130,15 @@
                             <!-- A separate java process, so that the exit code
                                  TestRunner returns is what fails the build. -->
                             <executable>java</executable>
+
+                            <!-- test, not the default runtime. TestRunner lives in
+                                 src/test/java, which is compiled to
+                                 target/test-classes, and the default runtime
+                                 classpath deliberately leaves test classes out.
+                                 Without this, `mvn test` would stop with
+                                 "Could not find or load main class". -->
+                            <classpathScope>test</classpathScope>
+
                             <arguments>
                                 <argument>-classpath</argument>
                                 <classpath/>
