@@ -1,5 +1,6 @@
 # Compiled output and any stray .class files, wherever they land.
 build/
+target/
 *.class
 stadium-bookings.dat
 *.mv.db

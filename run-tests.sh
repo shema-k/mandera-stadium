@@ -10,9 +10,12 @@ cd "$ROOT_DIR"
 rm -rf "$OUT_DIR"
 mkdir -p "$OUT_DIR"
 
+# --release 17 and -encoding UTF-8 match the settings in pom.xml, so the tests
+# check the same code NetBeans builds. Without UTF-8 the Luganda and Kiswahili
+# words could be mangled rather than fail loudly.
 find "$ROOT_DIR/src/main/java" -name '*.java' -print0 \
-  | xargs -0 javac -cp "$LIB_DIR/*" -d "$OUT_DIR"
+  | xargs -0 javac --release 17 -encoding UTF-8 -cp "$LIB_DIR/*" -d "$OUT_DIR"
 find "$ROOT_DIR/src/test/java" -name '*.java' -print0 \
-  | xargs -0 javac -cp "$OUT_DIR:$LIB_DIR/*" -d "$OUT_DIR"
+  | xargs -0 javac --release 17 -encoding UTF-8 -cp "$OUT_DIR:$LIB_DIR/*" -d "$OUT_DIR"
 
 java -cp "$OUT_DIR:$LIB_DIR/*" com.stadium.booking.TestRunner

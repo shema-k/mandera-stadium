@@ -13,6 +13,18 @@ the first time, and dipped into afterwards.
 Both compile everything first, so a mistake appears as an error message rather
 than a strange screen. Nothing else is needed — no build tool, no installer.
 
+## In NetBeans, IntelliJ or Eclipse
+
+Open the folder. That is the whole instruction — do not create a new project,
+just open this one. An IDE reads `pom.xml` and works out the rest: which folders
+hold the code, which class to start, and where the database driver comes from.
+
+You need **Java 17 or newer**, which is what `pom.xml` compiles for.
+
+If you prefer the terminal even inside your IDE, the two commands above work
+unchanged and need no IDE at all. They are not a fallback: they are the normal
+way to run this project, and they behave identically on every machine.
+
 ## The two folders that matter
 
 ```
@@ -143,8 +155,10 @@ explains how to write a test, which assert to use, and — for five of these fil
 
 | File | What it is |
 |---|---|
+| `pom.xml` | The build file, so NetBeans recognises the folder as a project. **Not needed to run anything** — `./run.sh` works without it. It names the Java version (17), the main class and the one dependency. |
 | `lib/h2-2.2.224.jar` | The database driver. Written by someone else. |
 | `build/` | Compiled output, made by the scripts. Safe to delete. |
+| `target/` | Compiled output, made by NetBeans or Maven. Safe to delete. |
 | `stadium-bookings.mv.db` | Your bookings. Made on first run. **Deleting it erases every booking.** |
 | `photos/` | Photographs you supply. None are included. |
 

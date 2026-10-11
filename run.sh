@@ -32,7 +32,10 @@ if [[ -z "${DISPLAY:-}" ]]; then
 fi
 
 mkdir -p "$OUT_DIR"
+# --release 17 pins the Java the code is compiled for, so a newer JDK produces
+# the same result instead of quietly using newer language rules. It is the same
+# setting Maven and NetBeans use; see pom.xml.
 find "$ROOT_DIR/src/main/java" -name '*.java' -print0 \
-  | xargs -0 javac -cp "$LIB_DIR/*" -d "$OUT_DIR"
+  | xargs -0 javac --release 17 -encoding UTF-8 -cp "$LIB_DIR/*" -d "$OUT_DIR"
 
 exec java -cp "$OUT_DIR:$LIB_DIR/*" com.stadium.booking.ui.StadiumBookingApp

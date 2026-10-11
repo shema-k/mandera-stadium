@@ -78,6 +78,24 @@ cd /home/shema/Desktop/PROJECTS/stadium-seat-booking
 ./run.sh
 ```
 
+## In NetBeans, IntelliJ or Eclipse
+
+Open this folder as a project — **File → Open Project**, then pick the folder.
+Do not create a new project and copy the files in. An IDE reads `pom.xml` and
+works out the source folders, the class to start and the database driver, so
+Run and Debug work straight away.
+
+A `pom.xml` is included for that reason only. **Nothing here needs Maven** —
+the two commands above are the normal way to run and test this project, and they
+work on any machine with a JDK.
+
+| | Command |
+|---|---|
+| Start the application | `./run.sh` |
+| Run all 299 checks | `./run-tests.sh` |
+| Same, if you prefer Maven | `mvn test` |
+| Start it, if you prefer Maven | `mvn exec:java` |
+
 ## Build and test
 
 ```bash

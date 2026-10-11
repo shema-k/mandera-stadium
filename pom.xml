@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Build file for the Namboole seat booking application.
+
+    WHY THIS FILE EXISTS
+    ~~~~~~~~~~~~~~~~~~~~
+    The application itself is plain Java Swing and builds fine with nothing but
+    a JDK: ./run.sh compiles and starts it. So this file is NOT required to run
+    the project. It exists so that an IDE - NetBeans above all, but also IntelliJ
+    and Eclipse - recognises the folder as a real project and gives you working
+    Run and Debug buttons instead of showing loose .java files.
+
+    Open the folder in NetBeans and it reads this file. No further setup: the
+    main class, the source folders and the database driver are all named here.
+
+    WHAT IS DECLARED, AND WHY
+    ~~~~~~~~~~~~~~~~~~~~~~~~
+    Java version 17 - the floor for this project. It uses pattern matching in
+    instanceof and text blocks, which need Java 16 and 15. Pinning to 17 means
+    the code behaves the same on every JDK from 17 upwards, rather than drifting
+    with whatever version is installed. The shell scripts use the same setting.
+
+    H2 2.2.224 - the only dependency. It is the embedded database that holds
+    the bookings, and it is one file. The same jar is also committed in lib/ so
+    that ./run.sh works with no download at all; this pom resolves it the normal
+    Maven way for the IDE.
+
+    Running and testing
+    ~~~~~~~~~~~~~~~~~~~
+    The tests are not JUnit tests, so surefire finds nothing to run. They are
+    wired to the test phase by hand instead: `mvn test` runs TestRunner, which
+    prints one line per check and fails the build if any check fails. That is why
+    it launches a separate java process rather than running in Maven's own JVM -
+    TestRunner ends with System.exit, which would otherwise take Maven down with
+    it instead of just reporting the failure.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+    <modelVersion>4.0.0</modelVersion>
+
+    <!-- Coordinates. The group is your own name, so this name is unique to you. -->
+    <groupId>com.stadium</groupId>
+    <artifactId>namboole-seat-booking</artifactId>
+    <version>1.0.0</version>
+    <packaging>jar</packaging>
+
+    <name>Namboole Seat Booking</name>
+    <description>
+        A Java Swing seat booking system for Mandela National Stadium, Kampala.
+        No frameworks, no build tool required.
+    </description>
+
+    <properties>
+        <!-- The Java version to compile for, in every JDK language sense. -->
+        <maven.compiler.release>17</maven.compiler.release>
+
+        <!-- Source files contain Luganda and Kiswahili text. Without this the
+             compiler reads them in the machine's own encoding, which mangles
+             the accents on anything that is not ASCII. -->
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+
+        <!-- The class with the main() method. NetBeans uses this for Run, and
+             `mvn exec:java` uses it too. -->
+        <main.class>com.stadium.booking.ui.StadiumBookingApp</main.class>
+
+        <!-- The class that runs all the checks. -->
+        <test.runner.class>com.stadium.booking.TestRunner</test.runner.class>
+    </properties>
+
+    <dependencies>
+        <!-- The only library the application uses: an embedded database that
+             keeps everything in one file next to the code. -->
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <version>2.2.224</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <finalName>namboole-seat-booking</finalName>
+
+        <plugins>
+            <!-- Compile for Java 17 exactly, on any newer JDK too. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.13.0</version>
+                <configuration>
+                    <release>17</release>
+                    <encoding>UTF-8</encoding>
+                </configuration>
+            </plugin>
+
+            <!-- Records which class to start when you press Run. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>3.4.1</version>
+                <configuration>
+                    <archive>
+                        <manifest>
+                            <mainClass>${main.class}</mainClass>
+                        </manifest>
+                    </archive>
+                </configuration>
+            </plugin>
+
+            <!-- Two uses:
+                 mvn exec:java          start the application
+                 mvn test                run all the checks (bound below) -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.3.0</version>
+                <configuration>
+                    <mainClass>${main.class}</mainClass>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>run-the-checks</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>exec</goal>
+                        </goals>
+                        <configuration>
+                            <!-- A separate java process, so that the exit code
+                                 TestRunner returns is what fails the build. -->
+                            <executable>java</executable>
+                            <arguments>
+                                <argument>-classpath</argument>
+                                <classpath/>
+                                <argument>${test.runner.class}</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>
