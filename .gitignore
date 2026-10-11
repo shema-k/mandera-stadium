@@ -2,6 +2,10 @@
 build/
 target/
 *.class
+
+# Written by NetBeans when the folder is opened as a project. It holds that one
+# machine's IDE settings and absolute paths, so it should never be committed.
+nbproject/
 stadium-bookings.dat
 *.mv.db
 *.trace.db
